@@ -6,7 +6,7 @@ A creative encryption tool that converts text messages into sequences of Pokémo
 
 Pokémon Cipher is a polyalphabetic substitution cipher that maps ASCII characters to Pokémon names from different regional Pokédexes. When a character repeats in a message, the cipher cycles to the next region's Pokémon, making the encryption more complex and interesting.
 
-![Screenshot of the app](screenshot.png)
+![Screenshot of the app](Screenshot.png)
 
 ## How It Works
 
