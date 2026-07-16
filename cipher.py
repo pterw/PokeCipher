@@ -1,8 +1,6 @@
-import tkinter as tk
-from tkinter import scrolledtext
 import string
 import time
-import os
+import re
 
 # Pokémon cipher encoding/decoding functions
 
@@ -69,143 +67,218 @@ regions = {
     ]
 }
 
-# --- Build the lookup table ---
-name_to_mappings = {}
+# --- Named constants ---
+ASCII_MIN = 32      # first printable ASCII (space)
+ASCII_MAX = 126     # last printable ASCII (~)
+REGION_SIZE = 95    # number of characters / Pokémon per region list (ASCII 32-126 inclusive)
+MAX_DECODE_BRANCHES = 32   # cap on live states during multi-state decoding
+
+# --- Precomputed module-level data ---
+name_to_mappings: dict[str, list[tuple[str, int]]] = {}
 region_names = list(regions.keys())
 num_regions = len(region_names)
+# Ordered list of region Pokémon lists, used directly by the encoder.
+_region_list_values = list(regions.values())
 
-print("Building lookup table...")
-for region_index, region_name in enumerate(region_names):
-    pokemon_list = regions[region_name]
-    for i in range(min(len(pokemon_list), 95)):
-        char_code = i + 32
-        char = chr(char_code)
-        pokemon_name = pokemon_list[i]
-        if pokemon_name not in name_to_mappings:
-            name_to_mappings[pokemon_name] = []
-        # Store tuple (character, region index)
-        name_to_mappings[pokemon_name].append((char, region_index))
-print(f"Precomputed detailed lookup table with {len(name_to_mappings)} unique Pokémon names.")
+for _region_index, _region_name in enumerate(region_names):
+    _pokemon_list = regions[_region_name]
+    for _i in range(min(len(_pokemon_list), REGION_SIZE)):
+        _char = chr(_i + ASCII_MIN)
+        _pokemon_name = _pokemon_list[_i]
+        if _pokemon_name not in name_to_mappings:
+            name_to_mappings[_pokemon_name] = []
+        name_to_mappings[_pokemon_name].append((_char, _region_index))
 # --- End of precomputation ---
 
 # Encoding function
-def encode_message(message):
-    letter_counts = {}
-    encoded_message_parts = []
-    region_list_values = list(regions.values())
+def encode_message(message: str) -> str:
+    """Encode a plaintext string into a space-separated sequence of Pokémon names.
+
+    Each printable ASCII character (codes 32-126) is mapped to the Pokémon at the
+    corresponding index in a regional Pokédex.  Repeated characters cycle through
+    regions (Kanto → Johto → Hoenn → Kanto …) based on how many times that character
+    has already appeared.  Non-printable characters other than ``\\n``/``\\r`` are
+    preserved as ``[CHAR:N]`` tokens.
+    """
+    letter_counts: dict[str, int] = {}
+    encoded_message_parts: list[str] = []
     for char in message:
         ascii_value = ord(char)
-        if 32 <= ascii_value <= 126:
-            normalized_index = ascii_value - 32
+        if ASCII_MIN <= ascii_value <= ASCII_MAX:
+            normalized_index = ascii_value - ASCII_MIN
             char_count = letter_counts.get(char, 0)
             region_index = char_count % num_regions
             letter_counts[char] = char_count + 1
-            current_region_list = region_list_values[region_index]
-            index_to_lookup = normalized_index
-            if index_to_lookup < len(current_region_list):
-                pokemon_to_append = current_region_list[index_to_lookup]
-                encoded_message_parts.append(pokemon_to_append)
+            current_region_list = _region_list_values[region_index]
+            if normalized_index < len(current_region_list):
+                encoded_message_parts.append(current_region_list[normalized_index])
             else:
-                encoded_message_parts.append(f"[err:idx_{index_to_lookup}_region_{region_names[region_index]}]")
+                encoded_message_parts.append(
+                    f"[err:idx_{normalized_index}_region_{region_names[region_index]}]"
+                )
         elif char in ('\n', '\r'):
             encoded_message_parts.append("[NEWLINE]" if char == '\n' else "[RETURN]")
         else:
-            encoded_message_parts.append(f"[CHAR:{ascii_value}]")
+            encoded_message_parts.append(f"[CHAR:{ord(char)}]")
     return " ".join(encoded_message_parts)
 
-# --- MODIFIED: Decoder flags ambiguity or shows all possibilities on error ---
-def decode_flexible_error_reporting(encoded_pokemon_string):
-    decoded_message_parts = []
-    pokemon_names = encoded_pokemon_string.split()
-    letter_counts = {} # STATE tracking
 
-    for name in pokemon_names:
-        # Handle special tags first
-        if name == "[NEWLINE]": decoded_message_parts.append('\n'); continue
-        elif name == "[RETURN]": decoded_message_parts.append('\r'); continue
-        elif name.startswith("[CHAR:") :
-            try: decoded_message_parts.append(chr(int(name[6:-1])));
-            except: decoded_message_parts.append("<?>");
+def decode_message(encoded_pokemon_string: str) -> str:
+    """Decode a Pokémon-name sequence back to the original plaintext.
+
+    Uses fork-based multi-state tracking so that an ambiguity at one position does
+    **not** prevent correct decoding of later positions.  All plausible letter-count
+    states are maintained in parallel; when a later token narrows the live states to
+    one, prior ambiguous positions are retroactively resolved.
+
+    Output notation
+    ---------------
+    * Normal character — decoded unambiguously across all surviving states.
+    * ``[x,y]``        — genuine ambiguity: two or more characters remain valid in the
+                         surviving states after processing the full sequence.
+    * ``{x,y}``        — state-mismatch error: every live state had no valid
+                         interpretation for this token (likely corrupted ciphertext).
+    """
+    tokens = encoded_pokemon_string.split()
+
+    # Each branch is a dict with:
+    #   'lc'      : letter_counts dict  (determines future decoding behaviour)
+    #   'choices' : list[set[str]]      (one set per Pokémon token position; a set
+    #                                    holds all chars any merged sub-branch chose)
+    branches: list[dict] = [{'lc': {}, 'choices': []}]
+
+    # output_plan: ordered list of (kind, value) items, built as we process tokens.
+    #   ('char',    str)       — literal string, emitted verbatim
+    #   ('pokemon', int)       — look up surviving branches' choices at index int
+    #   ('error',   list[str]) — state-mismatch; value = sorted list of all possible chars
+    output_plan: list[tuple] = []
+    pokemon_count = 0
+
+    for name in tokens:
+        # --- Special tokens ---
+        if name == '[NEWLINE]':
+            output_plan.append(('char', '\n'))
             continue
-        elif name.startswith("[err:") :
-            decoded_message_parts.append(f"<?error encoding: {name}>"); continue
+        if name == '[RETURN]':
+            output_plan.append(('char', '\r'))
+            continue
+        if name.startswith('[CHAR:'):
+            try:
+                output_plan.append(('char', chr(int(name[6:-1]))))
+            except ValueError:
+                output_plan.append(('char', '<?>'))
+            continue
+        if name.startswith('[err:'):
+            output_plan.append(('char', f'<?error encoding: {name}>'))
+            continue
+        if name not in name_to_mappings:
+            output_plan.append(('char', f'<?unknown: {name}>'))
+            continue
 
-        # Handle actual Pokémon names
-        if name in name_to_mappings:
-            possible_mappings = name_to_mappings[name]
-            valid_matches = [] # Store valid potential characters found
+        # --- Pokémon token ---
+        pos = pokemon_count
+        pokemon_count += 1
+        possible_mappings = name_to_mappings[name]
 
-            # Step 1: Find ALL valid possibilities based on current state
-            for potential_char, mapped_region_idx in possible_mappings:
-                current_count = letter_counts.get(potential_char, 0)
-                expected_region_idx = current_count % num_regions
-                if expected_region_idx == mapped_region_idx:
-                    valid_matches.append(potential_char) # Store the valid character
+        # For each live branch, find valid characters and create forked next-branches.
+        # Two branches that arrive at the same letter_counts state are merged: their
+        # choice-sets at every past position are unioned so all candidate paths are
+        # preserved for retroactive resolution.
+        next_by_lc: dict[frozenset, dict] = {}
 
-            # Step 2: Decide output based on number of valid matches
-            if len(valid_matches) == 1:
-                # Case 1: Exactly one valid character found
-                found_char = valid_matches[0]
-                decoded_message_parts.append(found_char)
-                # Update state only if unambiguous
-                letter_counts[found_char] = letter_counts.get(found_char, 0) + 1
+        for b in branches:
+            valid_chars = [
+                c for c, r in possible_mappings
+                if b['lc'].get(c, 0) % num_regions == r
+            ]
+            for char in valid_chars:
+                new_lc = dict(b['lc'])
+                new_lc[char] = new_lc.get(char, 0) + 1
+                key = frozenset(new_lc.items())
+                if key in next_by_lc:
+                    # Merge: union prior choice-sets, add current char
+                    existing = next_by_lc[key]
+                    for p2 in range(len(b['choices'])):
+                        existing['choices'][p2] |= b['choices'][p2]
+                    existing['choices'][pos] |= {char}
+                else:
+                    new_choices = [set(s) for s in b['choices']]  # deep copy
+                    new_choices.append({char})
+                    next_by_lc[key] = {'lc': new_lc, 'choices': new_choices}
 
-            elif len(valid_matches) > 1:
-                # Case 2: AMBIGUITY - Multiple characters fit the current state
-                # Output the simple list format marker
-                ambiguous_chars_str = ",".join(sorted(list(set(valid_matches)))) # Use set for unique chars
-                output_marker = f"[{ambiguous_chars_str}]"
-                # print(f"[DECODE AMBIGUITY] Name: '{name}' -> Outputting: {output_marker}") # Optional log
-                decoded_message_parts.append(output_marker)
-                # DO NOT update letter_counts state here
+        new_branches = list(next_by_lc.values())
 
-            else: # len(valid_matches) == 0
-                # Case 3: DECODING ERROR (State Mismatch)
-                # Output all potential chars for this Pokemon, ignoring state
-                all_possible_chars = sorted(list(set([mapping[0] for mapping in possible_mappings])))
-                all_chars_str = ",".join(all_possible_chars)
-                # Use the simple list format marker for errors too
-                output_marker = f"[{all_chars_str}]"
-                # print(f"[DECODE ERR] Name: '{name}' | State mismatch! Showing all possibilities: {output_marker}") # Optional log
-                decoded_message_parts.append(output_marker)
-                # DO NOT update letter_counts state here
-
+        if new_branches:
+            # Trim to cap to prevent pathological blowup
+            branches = new_branches[:MAX_DECODE_BRANCHES]
+            output_plan.append(('pokemon', pos))
         else:
-             # Handle unknown Pokemon names
-            # print(f"[DECODE UNKNOWN] Name: '{name}'") # Optional console log
-            decoded_message_parts.append(f"<?unknown: {name}>")
+            # All branches dead — genuine state-mismatch error
+            all_possible = sorted({c for c, _r in possible_mappings})
+            output_plan.append(('error', all_possible))
+            # Keep branches unchanged and add a placeholder so choice indices stay aligned
+            for b in branches:
+                b['choices'].append(set())
 
-    return "".join(decoded_message_parts)
-# --- End of MODIFIED decoding function ---
+    # --- Build the final output string ---
+    result: list[str] = []
+    for kind, value in output_plan:
+        if kind == 'char':
+            result.append(value)
+        elif kind == 'error':
+            result.append('{' + ','.join(value) + '}')
+        else:  # 'pokemon'
+            p: int = value
+            chars_at_p: set[str] = set()
+            for b in branches:
+                if p < len(b['choices']):
+                    chars_at_p |= b['choices'][p]
+            chars_sorted = sorted(chars_at_p)
+            if len(chars_sorted) == 1:
+                result.append(chars_sorted[0])
+            elif len(chars_sorted) > 1:
+                result.append('[' + ','.join(chars_sorted) + ']')
+            else:
+                result.append('<???>')  # should not occur in practice
+
+    return ''.join(result)
+
+
+# Backward-compatibility alias — existing code and tests that call the old name still work.
+decode_flexible_error_reporting = decode_message
 
 # --- GUI setup ---
 def create_gui():
-    root = tk.Tk()
-    # Update title to reflect decoder type
-    root.title(f"Pokémon Cipher ({num_regions}-region | Flexible Error Decoder)")
+    import tkinter as tk
+    from tkinter import scrolledtext
 
-    status_var = tk.StringVar()
-    status_var.set("Ready")
+    root = tk.Tk()
+    root.title(f"Pokémon Cipher  [{num_regions} regions · multi-state decoder]")
+    root.minsize(520, 420)
+
+    status_var = tk.StringVar(value="Ready")
     status_bar = tk.Label(root, textvariable=status_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
     status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
     input_frame = tk.Frame(root)
-    input_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10,5))
-
-    tk.Label(input_frame, text="Enter text:").pack(anchor=tk.W)
-    input_box = scrolledtext.ScrolledText(input_frame, height=6, width=60, wrap=tk.WORD)
+    input_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
+    tk.Label(input_frame, text="Input:").pack(anchor=tk.W)
+    input_box = scrolledtext.ScrolledText(input_frame, height=7, width=65, wrap=tk.WORD)
     input_box.pack(fill=tk.BOTH, expand=True)
 
-    def update_status(message, duration=3000):
+    def update_status(message: str, duration: int = 3000) -> None:
         status_var.set(message)
         root.after(duration, lambda: status_var.set("Ready"))
 
+    # --- Button row ---
     button_frame = tk.Frame(root)
     button_frame.pack(fill=tk.X, padx=10, pady=5)
 
-    def handle_encode():
-        user_input = input_box.get("1.0", tk.END)
+    def handle_encode() -> None:
+        # Strip the trailing newline that tkinter always appends to Text widget content.
+        user_input = input_box.get("1.0", tk.END).rstrip('\n')
         output_box.delete("1.0", tk.END)
+        _clear_output_tags(output_box)
         if not user_input.strip():
             update_status("Please enter text to encrypt")
             output_box.insert(tk.END, "Please enter text to encrypt.")
@@ -214,59 +287,88 @@ def create_gui():
         encoded_text = encode_message(user_input)
         elapsed_time = time.time() - start_time
         output_box.insert(tk.END, encoded_text)
-        update_status(f"Encrypted in {elapsed_time:.3f} seconds")
+        update_status(f"Encrypted in {elapsed_time:.3f}s")
 
-    encode_button = tk.Button(button_frame, text="Encrypt -> Pokémon", command=handle_encode, width=20)
-    encode_button.pack(side=tk.LEFT, padx=5)
-
-    def handle_decode():
-        user_input = input_box.get("1.0", tk.END)
+    def handle_decode() -> None:
+        user_input = input_box.get("1.0", tk.END).strip()
         output_box.delete("1.0", tk.END)
-        if not user_input.strip():
+        _clear_output_tags(output_box)
+        if not user_input:
             update_status("Please enter Pokémon names to decrypt")
             output_box.insert(tk.END, "Please enter Pokémon names to decrypt.")
             return
         start_time = time.time()
-        # *** Calls the NEW flexible error decoder function ***
-        decoded_text = decode_flexible_error_reporting(user_input.strip())
+        decoded_text = decode_message(user_input)
         elapsed_time = time.time() - start_time
         output_box.insert(tk.END, decoded_text)
-        update_status(f"Decrypted in {elapsed_time:.3f} seconds")
+        _highlight_markers(output_box)
+        update_status(f"Decrypted in {elapsed_time:.3f}s")
 
-    # Make sure the button calls the new decoder function name
-    decode_button = tk.Button(button_frame, text="Decrypt -> Text", command=handle_decode, width=20)
-    decode_button.pack(side=tk.LEFT, padx=5)
-
-    def handle_clear():
+    def handle_clear() -> None:
         input_box.delete("1.0", tk.END)
         output_box.delete("1.0", tk.END)
-        update_status("Cleared all text")
+        _clear_output_tags(output_box)
+        update_status("Cleared")
 
-    clear_button = tk.Button(button_frame, text="Clear All", command=handle_clear, width=15)
-    clear_button.pack(side=tk.LEFT, padx=5)
+    def handle_swap() -> None:
+        """Move the output box content into the input box for chained operations."""
+        out_text = output_box.get("1.0", tk.END).strip()
+        if not out_text:
+            update_status("Nothing to swap")
+            return
+        input_box.delete("1.0", tk.END)
+        input_box.insert(tk.END, out_text)
+        output_box.delete("1.0", tk.END)
+        _clear_output_tags(output_box)
+        update_status("Output swapped to input")
 
-    def handle_copy():
+    def handle_copy() -> None:
         output_text = output_box.get("1.0", tk.END).strip()
         if output_text:
             root.clipboard_clear()
             root.clipboard_append(output_text)
-            update_status("Copied output to clipboard")
+            update_status("Output copied to clipboard")
         else:
             update_status("No output to copy")
 
-    copy_button = tk.Button(button_frame, text="Copy Output", command=handle_copy, width=15)
-    copy_button.pack(side=tk.LEFT, padx=5)
+    tk.Button(button_frame, text="Encrypt → Pokémon", command=handle_encode, width=18).pack(side=tk.LEFT, padx=4)
+    tk.Button(button_frame, text="Decrypt → Text",    command=handle_decode, width=16).pack(side=tk.LEFT, padx=4)
+    tk.Button(button_frame, text="Swap ↕",            command=handle_swap,   width=8 ).pack(side=tk.LEFT, padx=4)
+    tk.Button(button_frame, text="Copy Output",       command=handle_copy,   width=12).pack(side=tk.LEFT, padx=4)
+    tk.Button(button_frame, text="Clear",             command=handle_clear,  width=8 ).pack(side=tk.LEFT, padx=4)
 
+    # --- Output box ---
     output_frame = tk.Frame(root)
-    output_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5,10))
-
+    output_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
     tk.Label(output_frame, text="Output:").pack(anchor=tk.W)
-    output_box = scrolledtext.ScrolledText(output_frame, height=6, width=60, wrap=tk.WORD)
+    output_box = scrolledtext.ScrolledText(output_frame, height=7, width=65, wrap=tk.WORD)
     output_box.pack(fill=tk.BOTH, expand=True)
+
+    # Configure colour tags for decoded output highlighting
+    output_box.tag_configure("ambiguous", foreground="#E07800")   # amber — [x,y] markers
+    output_box.tag_configure("error",     foreground="#CC0000")   # red   — {x,y} markers
+
+    def _clear_output_tags(widget: scrolledtext.ScrolledText) -> None:
+        widget.tag_remove("ambiguous", "1.0", tk.END)
+        widget.tag_remove("error",     "1.0", tk.END)
+
+    def _highlight_markers(widget: scrolledtext.ScrolledText) -> None:
+        """Apply colour tags to ambiguity and error markers in the output widget."""
+        full_text = widget.get("1.0", tk.END)
+        for match in re.finditer(r'\[[^\]]+\]', full_text):
+            start = f"1.0 + {match.start()} chars"
+            end   = f"1.0 + {match.end()} chars"
+            widget.tag_add("ambiguous", start, end)
+        for match in re.finditer(r'\{[^}]+\}', full_text):
+            start = f"1.0 + {match.start()} chars"
+            end   = f"1.0 + {match.end()} chars"
+            widget.tag_add("error", start, end)
 
     return root
 
+
 # Run the application
 if __name__ == "__main__":
+    print(f"Loaded {len(name_to_mappings)} unique Pokémon names across {num_regions} regions.")
     root = create_gui()
     root.mainloop()
