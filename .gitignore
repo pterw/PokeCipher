@@ -53,3 +53,9 @@ Thumbs.db
 
 # --- Local scratch ---
 *.log
+
+# --- Local working files, never committed ---
+# Handoff notes for AI agent sessions. Lives on disk, but must not reach main.
+BOOTSTRAP.md
+# Stray scaffold left in the repo root; next-app/ is the real frontend.
+shadcn-test/
