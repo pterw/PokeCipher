@@ -9,3 +9,7 @@ venv/
 env/
 venv*/
 env*/
+
+# Logs and transient files
+*.log
+.pytest_cache/

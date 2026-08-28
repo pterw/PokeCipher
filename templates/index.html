@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POKÉMON FIRERED // DUAL-SCREEN CIPHER DS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Retro Scanlines -->
+    <div class="scanlines"></div>
+
+    <!-- NINTENDO DS HANDHELD SYSTEM FRAME -->
+    <main class="ds-system-wrapper">
+        <div class="ds-body">
+            <!-- DS Hinge & Brand Header -->
+            <div class="ds-hinge">
+                <div class="ds-logo">NINTENDO DS // FIRERED CIPHER</div>
+                <div class="ds-status-lights">
+                    <span class="light-label">POWER</span>
+                    <div class="led-light power-led"></div>
+                    <span class="light-label">WIRELESS</span>
+                    <div class="led-light wifi-led"></div>
+                </div>
+            </div>
+
+            <!-- TOP SCREEN: OUTPUT CONSOLE & SPRITE VIEWPORT -->
+            <section class="ds-screen-casing top-casing">
+                <div class="ds-screen top-screen">
+                    <div class="screen-header">
+                        <span class="header-tag">&gt; TOP SCREEN // OUTPUT VIEWPORT</span>
+                        <span id="outputTypeInfo" class="header-badge">[{{ num_regions }} REGIONS]</span>
+                    </div>
+
+                    <!-- Main Output Display Container -->
+                    <div class="viewport-box">
+                        <!-- Text Output -->
+                        <div id="outputArea" class="output-display" tabindex="0">
+                            <span class="placeholder-text">Encrypted Pokémon names or decrypted text will render here...</span>
+                        </div>
+
+                        <!-- Sprites Output (Toggleable) -->
+                        <div id="spritesGrid" class="sprites-grid" style="display: none;"></div>
+                    </div>
+
+                    <!-- Output Status Footer -->
+                    <div class="screen-footer">
+                        <span id="statusText" class="status-msg">SYSTEM READY</span>
+                        <span id="statusTime" class="status-time"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MIDDLE HINGE SEPARATOR -->
+            <div class="ds-middle-bar">
+                <div class="speaker-grill left-speaker"></div>
+                <div class="ds-hinge-accent"></div>
+                <div class="speaker-grill right-speaker"></div>
+            </div>
+
+            <!-- BOTTOM SCREEN: TOUCH INPUT TERMINAL & SHADCN CONTROL PANEL -->
+            <section class="ds-screen-casing bottom-casing">
+                <div class="ds-screen bottom-screen">
+                    <div class="screen-header">
+                        <span class="header-tag">&gt; BOTTOM TOUCH SCREEN // CLI INPUT</span>
+                        <span class="header-badge">ASCII 32-126</span>
+                    </div>
+
+                    <!-- CLI Input Terminal -->
+                    <div class="input-card">
+                        <textarea id="inputArea" class="cli-input-touch" placeholder="Type text to encrypt or Pokémon names to decrypt..."></textarea>
+                    </div>
+
+                    <!-- Control Action Bar (Shadcn UI Principles) -->
+                    <div class="shadcn-button-grid">
+                        <button id="btnEncrypt" class="shadcn-btn btn-primary">
+                            <span class="btn-icon">⚡</span> ENCRYPT → POKÉMON
+                        </button>
+                        <button id="btnDecrypt" class="shadcn-btn btn-primary">
+                            <span class="btn-icon">🔓</span> DECRYPT → TEXT
+                        </button>
+                        <button id="btnToggleSprites" class="shadcn-btn btn-secondary">
+                            <span class="btn-icon">👾</span> SPRITES: OFF
+                        </button>
+                        <button id="btnSwap" class="shadcn-btn btn-outline">
+                            <span class="btn-icon">↕</span> SWAP
+                        </button>
+                        <button id="btnCopy" class="shadcn-btn btn-outline">
+                            <span class="btn-icon">📋</span> COPY
+                        </button>
+                        <button id="btnClear" class="shadcn-btn btn-ghost">
+                            <span class="btn-icon">✕</span> CLEAR
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
