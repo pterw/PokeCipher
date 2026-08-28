@@ -1,0 +1,5 @@
+# PokéCipher runtime dependencies.
+#
+# The cipher itself is pure standard library. This file exists so Vercel
+# detects the project as Python and provisions the runtime for api/*.py.
+# Add real dependencies here when the cipher needs them.

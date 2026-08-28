@@ -1,11 +1,55 @@
-# Python bytecode
+# --- Python ---
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual environments
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+sdist/
+wheels/
+.venv/
 venv/
-env/
 venv*/
+env/
 env*/
+
+# --- Testing & tooling ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# --- Environments ---
+.env
+.env.*
+!.env.example
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.turbo/
+
+# --- Vercel ---
+.vercel/
+
+# --- Editors & OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Local scratch ---
+*.log

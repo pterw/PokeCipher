@@ -1,0 +1,11 @@
+# Default owners for everything in this repository.
+* @pterw
+
+# The cipher core and its data are the security- and correctness-critical parts.
+/pokecipher/ @pterw
+/api/ @pterw
+/api_support.py @pterw
+
+# CI and deployment configuration.
+/.github/ @pterw
+/vercel.json @pterw

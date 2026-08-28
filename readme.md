@@ -1,103 +1,128 @@
-# Pokémon Cipher: A Stateful Polyalphabetic Substitution Cipher
+# PokéCipher
 
-A fun, creative, and surprisingly complex substitution cipher that converts text messages into sequences of Pokemon names using regional Pokedex entries and character-based state tracking.
-
-## Overview
-
-Pokemon Cipher implements a stateful polyalphabetic substitution cipher. It maps printable ASCII characters (codes 32-126) to Pokemon names based on their position (Index = Pokedex # - 1) in different regional Pokedex lists (Kanto, Johto, Hoenn). The core feature is its stateful nature: when a character repeats, the cipher cycles to the next region's list for subsequent occurrences based on the character's appearance count.
-
-This design, utilizing real-world overlapping Pokedex data, intentionally creates ambiguities where the same Pokémon can represent different characters. The decoder attempts to resolve this using state but explicitly flags cases where the original character is uncertain or where the encoded sequence leads to a state mismatch error. This makes it a challenging cipher to decode perfectly without context.
+A retro, Pokédex-themed web app that encrypts text into sequences of Pokémon
+names and decrypts them back again. Built with Next.js and Python, deployed on
+Vercel.
 
 ![Screenshot of the app](Screenshot.png)
 
-## How It Works
+## What the cipher does
 
-### Encoding (`encode_message`)
+PokéCipher is a **stateful polyalphabetic substitution cipher**. It maps
+printable ASCII characters (codes 32–126) onto regional Pokédex entries:
 
-1.  Each printable ASCII character (code 32-126) is mapped to a 0-based index (`normalized_index = ascii_value - 32`).
-2.  The cipher tracks the number of times each character has appeared (`letter_counts`).
-3.  The region (Kanto, Johto, Hoenn) is determined by the character's current count modulo the number of regions (`region_index = char_count % num_regions`).
-4.  The Pokémon at the `normalized_index` within the selected region's list (`regions[region_name][normalized_index]`) is chosen as the ciphertext unit.
-5.  The character's count is incremented *after* determining the region and Pokémon.
+1. Normalise a character to an index: `index = ord(char) - 32`.
+2. Look up how many times that character has already appeared.
+3. Pick the region by cycling: the Nth occurrence uses region `N % 3`
+   (Kanto → Johto → Hoenn → Kanto …).
+4. Emit the Pokémon at `index` in that region's list; increment the count.
 
-### Decoding (`decode_flexible_error_reporting`)
-
-The decoder reverses the process using state tracking:
-
-1.  It reads the input sequence of Pokémon names.
-2.  For each name, it consults a precomputed lookup table (`name_to_mappings`) to find all possible `(original_character, region_index)` pairs it could represent.
-3.  It tracks the count of previously decoded characters (`letter_counts`).
-4.  For each possibility, it checks if the Pokémon's `mapped_region_idx` matches the `expected_region_idx` (calculated from the `potential_char`'s `current_count % num_regions`).
-5.  **Handling Results:**
-    * **One Match:** If exactly one character fits the current state, that character is outputted, and its count in `letter_counts` is incremented.
-    * **Multiple Matches (Ambiguity):** If multiple characters fit the current state (e.g., Slowpoke could be 'n' or 'o'), the decoder outputs a marker listing all valid possibilities (e.g., `[n,o]`). The `letter_counts` state is **not** updated in this case.
-    * **Zero Matches (State Mismatch Error):** If no possible character fits the current state (e.g., decoding Seaking in the sequence for "I don't know"), the decoder outputs a marker listing *all* characters that Pokémon *could ever* map to, ignoring state (e.g., `[n,R]` for Seaking). The `letter_counts` state is **not** updated in this case.
-
-This decoding approach accurately reflects the cipher's behavior, including its inherent limitations.
+Because the same character rarely maps to the same Pokémon twice, and because
+Pokémon names legitimately repeat across regional dexes, decoding is genuinely
+ambiguous. That is the interesting part of the cipher, not a bug.
 
 ### Example
 
-Encoding `"Hello"`:
-* 'H' (Idx 40, Kanto) → `Zubat`
-* 'e' (Idx 69, Kanto) → `Weepinbell`
-* 'l' (Idx 76, Kanto) → `Ponyta`
-* 'l' (Idx 76, Johto) → `Gyarados`
-* 'o' (Idx 79, Kanto) → `Slowbro`
-Result: `Zubat Weepinbell Ponyta Gyarados Slowbro`
+`Hello` encodes to:
 
-Decoding `"Zubat Weepinbell Ponyta Gyarados Slowbro"` results in `"Hello"`.
+```
+Zubat Weepinbell Ponyta Gyarados Slowbro
+```
 
-Encoding `"Hello World!"` results in `Zubat Weepinbell Ponyta Gyarados Slowbro Bulbasaur Mankey Slowpoke Farfetch'd Medicham Bellsprout Ivysaur`.
-Decoding that sequence results in `Hello W[n,o]rld!` because the state for decoding `Slowpoke` makes both 'n' and 'o' valid possibilities.
+Note the two `l`s become `Ponyta` then `Gyarados`: the second `l` has cycled to
+the Johto list.
 
-## Features
+### Decoder output
 
-* Encrypts text messages into sequences of Pokémon names using ASCII mapping and stateful region cycling.
-* Attempts stateful decryption back to text.
-* Uses corrected Kanto, Johto, and Hoenn Pokedex lists (first 95 entries).
-* Explicitly flags points of ambiguity (e.g., `[n,o]`) and state mismatch errors (e.g., `[n,R]`) during decoding rather than guessing incorrectly.
-* Simple GUI interface using `tkinter`.
-* Handles printable ASCII characters (32-126); preserves newlines and indicates other characters.
+| Notation | Meaning |
+|---|---|
+| `x` | Decoded unambiguously. |
+| `[x,y]` | **Ambiguity** — the cipher is lossy here and several characters remain valid. |
+| `{x,y}` | **State mismatch** — no valid interpretation; the ciphertext is likely corrupted. |
+| `<?unknown: X>` | `X` is not a known Pokémon name. |
 
-## Requirements
+`Hello World!` round-trips to `Hello W[n,o]rld!`: `Slowpoke` maps to both `n`
+(Kanto) and `o` (Johto), and nothing later in the message disambiguates it.
 
-* Python 3.x
-* tkinter (usually included with Python)
+Decoding forks one hypothesis per candidate character and merges hypotheses that
+reconverge, so a later Pokémon often resolves an earlier ambiguity after the
+fact — `Nidoking Geodude Shroomish Nidoking` decodes cleanly to `AAAA`, even
+though `Geodude` on its own is ambiguous.
 
-## Usage
+## Architecture
 
-1.  Save the code as `cipher.py`.
-2.  Run the script from your terminal:
-    ```bash
-    python cipher.py
-    ```
-3.  Use the GUI to enter text/Pokémon names and click Encrypt/Decrypt.
-4.  **(Optional) Run Unit Tests:** Verify functionality using:
-    ```bash
-    python -m unittest test_cipher.py
-    ```
-    *(Requires `test_cipher.py` with appropriate test cases)*
+Full-stack, with Python as the single source of truth for the cipher:
 
-## Technical Details
+```
+pokecipher/   Cipher core, one concern per module.
+api/          Vercel Python serverless functions: POST /api/encode, /api/decode.
+next-app/     Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
+cipher.py     Backwards-compatible re-export shim.
+```
 
-* **Cipher Type:** Stateful Polyalphabetic Substitution Cipher.
-* **Mapping:** ASCII 32-126 map to List Index 0-94 (`Index = ASCII - 32`). Pokémon #N is at Index N-1 in the lists.
-* **State:** Character counts (`letter_counts`) determine region cycling (encoding) and state validation (decoding).
-* **Precomputation:** A `name_to_mappings` dictionary is built on startup for efficient decoder lookup.
-* **Security:** This is a classical cipher concept, **not cryptographically secure** against modern analysis. It's intended as a fun puzzle or themed cipher.
+The frontend never re-implements the cipher. It calls the Python functions, so
+the algorithm and the Pokédex data exist in exactly one place.
 
-## Development Notes & Challenges
+Pokémon output toggles between sprites and names. Sprites are served from the
+PokémonDB CDN keyed by name, falling back to the name when a slug is unknown.
 
-* Ensuring accurate Pokedex list ordering (Index = Pokedex # - 1) across all regions was critical and required careful verification.
-* The stateful decoding logic needed refinement to handle inherent ambiguities caused by Pokémon appearing in multiple lists (e.g., Slowpoke mapping to both 'n' and 'o'). The final decoder explicitly reports these ambiguities (`[n,o]`) or state mismatch errors (`[n,R]`) rather than guessing, providing accurate feedback on the reversibility limitations for certain sequences.
-* Thorough testing, including cross-platform checks and the provided unit tests (`test_cipher.py`), was essential to confirm the final implementation correctly follows the defined cipher rules.
+## Running it locally
 
-## Extending the Cipher
+Python side, from the repository root:
 
-You can add more regions (Sinnoh, Unova, etc.) by updating the `regions` dictionary with additional, correctly ordered Pokémon lists (minimum 95 per list). Note that this will increase the complexity and potentially the frequency of ambiguous decodings.
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest          # run the test suite
+python -m ruff check .    # lint
+```
 
-## Use Cases
+Frontend, from `next-app/`:
 
-* Educational tool for exploring substitution ciphers, state tracking, and ambiguity.
-* Fun puzzles for cipher or Pokémon enthusiasts.
-* Themed messages for fan communities (understanding the decoding limitations).
+```bash
+npm ci
+npm run dev               # http://localhost:3000
+```
+
+## Deployment
+
+Deployed on Vercel as **two projects from this repository**, because Vercel
+cannot host a Next.js app and Python serverless functions in a single project:
+
+| Project | Root directory | Serves |
+|---|---|---|
+| API | `.` (repository root) | `api/encode.py`, `api/decode.py` |
+| Web | `next-app` | the Next.js frontend |
+
+Both deploy on push to `main`; every pull request gets a preview URL. Copy
+`next-app/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the API
+project's URL (for example `https://pokecipher-api.vercel.app`). Left empty, the
+frontend calls `/api/*` on its own origin.
+
+## API
+
+Both endpoints take `POST {"text": "..."}` and return `{"result": "..."}`.
+Input is capped at 4,000 characters, because decode time grows quadratically
+with message length.
+
+```bash
+curl -X POST https://<api>/api/encode -d '{"text":"Hello"}'
+# {"result":"Zubat Weepinbell Ponyta Gyarados Slowbro"}
+```
+
+## Known limitations
+
+- **Decode time depends on how much ambiguity survives.** The decoder emits each
+  position as soon as it is final, so ordinary text stays close to linear —
+  measured on CPython 3.13, ~1.2 s for 10,000 characters of prose. Text that
+  sustains an unresolved ambiguity throughout cannot collapse and degrades to
+  quadratic (~3.3 s at 4,100 characters). The API caps input at 4,000 characters
+  so even that worst case fits inside the function timeout.
+- **The cipher is not cryptographically secure.** It is a puzzle and a teaching
+  tool for substitution ciphers and state tracking, not a way to protect data.
+- Only the first 95 entries of each regional dex are used. Names containing
+  spaces (Mr. Mime, Tapu Koko) cannot be added without changing the delimiter.
+
+## Project conventions
+
+See [AGENTS.md](AGENTS.md) for the architecture rules, testing expectations, and
+deployment details that contributors and AI agents should follow.
