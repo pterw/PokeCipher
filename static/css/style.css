@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 :root {
-    --gb-darkest: #0f380f;
-    --gb-dark: #306230;
-    --gb-light: #8bac0f;
-    --gb-lightest: #9bbc0f;
-    --poke-red: #cc1111;
-    --poke-red-dark: #7a0909;
-    --poke-gold: #f8b800;
-    --amber-warn: #e07800;
-    --red-error: #cc0000;
+    --bg-dark: #000000;
+    --dialog-bg: #ffffff;
+    --dialog-border: #000000;
+    --poke-red: #cc0000;
+    --poke-red-dark: #800000;
+    --text-black: #000000;
+    --text-white: #ffffff;
+    --amber-warn: #d97706;
+    --red-error: #dc2626;
     --font-pixel: 'Press Start 2P', monospace, cursive;
     --font-cli: 'VT323', monospace, monospace;
 }
@@ -25,10 +25,10 @@ html, body {
     height: 100%;
     overflow: hidden;
     font-family: var(--font-pixel);
-    background-color: #0d1b0d;
+    background-color: var(--bg-dark);
 }
 
-/* Retro CRT Scanline Effect */
+/* Authentic CRT Overlay */
 .scanlines {
     position: fixed;
     top: 0;
@@ -38,25 +38,20 @@ html, body {
     background: linear-gradient(
         rgba(18, 16, 16, 0) 50%,
         rgba(0, 0, 0, 0.25) 50%
-    ), linear-gradient(
-        90deg,
-        rgba(255, 0, 0, 0.03),
-        rgba(0, 255, 0, 0.01),
-        rgba(0, 0, 255, 0.03)
     );
-    background-size: 100% 4px, 6px 100%;
+    background-size: 100% 4px;
     pointer-events: none;
     z-index: 99;
 }
 
-/* Pokémon Red Animated Overworld Background */
+/* Pokémon Red Dynamic Battle / Overworld Background */
 .game-scene {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: #8bac0f;
+    background: #111111;
     overflow: hidden;
 }
 
@@ -65,19 +60,19 @@ html, body {
     position: absolute;
     top: 0;
     width: 100%;
-    height: 40%;
-    background: linear-gradient(to bottom, #306230, #8bac0f);
+    height: 45%;
+    background: linear-gradient(to bottom, #000000, #222222);
 }
 
 .mountain-range {
     position: absolute;
-    top: 30%;
+    top: 35%;
     width: 100%;
     height: 120px;
-    background-image: radial-gradient(circle at 50% 100%, #0f380f 40%, transparent 41%);
+    background-image: radial-gradient(circle at 50% 100%, #1a1a1a 40%, transparent 41%);
     background-size: 160px 120px;
     background-repeat: repeat-x;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 /* Environment Layer */
@@ -85,54 +80,10 @@ html, body {
     position: absolute;
     bottom: 0;
     width: 100%;
-    height: 60%;
-    background-color: #9bbc0f;
-    border-top: 6px solid #0f380f;
+    height: 55%;
+    background-color: #0a0a0a;
+    border-top: 4px solid var(--poke-red);
 }
-
-/* Animated Trees */
-.tree {
-    position: absolute;
-    width: 48px;
-    height: 64px;
-    background: #0f380f;
-    box-shadow: inset -4px -4px 0 #306230;
-    border-radius: 8px 8px 0 0;
-}
-
-.tree::after {
-    content: '';
-    position: absolute;
-    bottom: -16px;
-    left: 18px;
-    width: 12px;
-    height: 16px;
-    background: #306230;
-}
-
-.tree-left-1 { left: 5%; bottom: 35%; }
-.tree-left-2 { left: 12%; bottom: 15%; }
-.tree-right-1 { right: 6%; bottom: 40%; }
-.tree-right-2 { right: 14%; bottom: 20%; }
-
-/* Animated Grass Tufts */
-.grass-tuft {
-    position: absolute;
-    width: 16px;
-    height: 12px;
-    background: #306230;
-    clip-path: polygon(0% 100%, 25% 0%, 50% 100%, 75% 0%, 100% 100%);
-    animation: sway 3s ease-in-out infinite alternate;
-}
-
-@keyframes sway {
-    0% { transform: skewX(-5deg); }
-    100% { transform: skewX(5deg); }
-}
-
-.grass-1 { left: 22%; bottom: 45%; }
-.grass-2 { right: 28%; bottom: 30%; animation-delay: 1s; }
-.grass-3 { left: 45%; bottom: 12%; animation-delay: 1.5s; }
 
 /* Animated Pixel Characters */
 .character-layer {
@@ -147,8 +98,8 @@ html, body {
     position: absolute;
     left: 8%;
     bottom: 10px;
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     background: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/1.png') no-repeat center/contain;
     image-rendering: pixelated;
     animation: walk-bounce 1s infinite alternate;
@@ -158,8 +109,8 @@ html, body {
     position: absolute;
     right: 10%;
     bottom: 15px;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     background: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png') no-repeat center/contain;
     image-rendering: pixelated;
     animation: hop 1.2s ease-in-out infinite;
@@ -175,7 +126,7 @@ html, body {
     50% { transform: translateY(-8px); }
 }
 
-/* Centered CLI Interface Modal Box */
+/* Centered CLI Interface Box */
 .cli-modal-wrapper {
     position: relative;
     z-index: 10;
@@ -187,23 +138,25 @@ html, body {
     padding: 16px;
 }
 
+/* Classic Red Handheld / Console Frame */
 .gameboy-frame {
     background-color: var(--poke-red);
-    border: 5px solid var(--poke-red-dark);
-    border-radius: 12px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    border: 4px solid #000000;
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
     width: 100%;
     max-width: 860px;
-    padding: 20px;
+    padding: 18px;
 }
 
 .gb-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #fff;
+    color: #ffffff;
     margin-bottom: 12px;
     font-size: 0.85rem;
+    letter-spacing: 1px;
     text-shadow: 2px 2px 0 #000;
 }
 
@@ -217,9 +170,9 @@ html, body {
 .power-led {
     width: 10px;
     height: 10px;
-    background-color: #ff3333;
+    background-color: #ffcc00;
     border-radius: 50%;
-    box-shadow: 0 0 8px #ff3333;
+    box-shadow: 0 0 8px #ffcc00;
     animation: pulse 2s infinite;
 }
 
@@ -228,37 +181,37 @@ html, body {
     50% { opacity: 0.5; }
 }
 
-/* Screen Housing */
+/* Screen Housing - Classic Pokémon Red 2-Bit White Dialogue Frame */
 .screen-bezel {
-    background-color: #1c1c1c;
-    border: 3px solid #000;
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: inset 0 0 10px #000;
+    background-color: #000000;
+    border: 3px solid #000000;
+    border-radius: 4px;
+    padding: 10px;
 }
 
 .screen {
-    background-color: var(--gb-lightest);
-    border: 3px solid var(--gb-darkest);
-    border-radius: 4px;
+    background-color: var(--dialog-bg);
+    border: 4px solid #000000;
+    border-radius: 2px;
     padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Section Box */
+/* Game Boy Dialogue Box Style */
 .section-box {
-    border: 2px double var(--gb-darkest);
-    background-color: rgba(139, 172, 15, 0.15);
+    border: 3px solid #000000;
+    background-color: #ffffff;
     padding: 10px;
-    border-radius: 2px;
+    border-radius: 0px;
+    box-shadow: inset -2px -2px 0 #000000, inset 2px 2px 0 #ffffff;
 }
 
 .section-label {
     font-size: 0.65rem;
     font-weight: bold;
-    color: var(--gb-darkest);
+    color: #000000;
     margin-bottom: 6px;
     display: flex;
     justify-content: space-between;
@@ -268,19 +221,18 @@ html, body {
 .cli-input {
     width: 100%;
     height: 75px;
-    background-color: var(--gb-light);
-    border: 2px solid var(--gb-darkest);
-    color: var(--gb-darkest);
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    color: #000000;
     font-family: var(--font-cli);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     padding: 8px;
     resize: none;
     outline: none;
-    border-radius: 2px;
 }
 
 .cli-input:focus {
-    background-color: #9ecc0f;
+    background-color: #f0f0f0;
 }
 
 /* Button Controls Bar */
@@ -292,32 +244,34 @@ html, body {
 }
 
 .btn-retro {
-    background: var(--gb-dark);
-    color: #fff;
-    border: 2px solid var(--gb-darkest);
+    background: #ffffff;
+    color: #000000;
+    border: 3px solid #000000;
     font-family: var(--font-pixel);
     font-size: 0.55rem;
-    padding: 8px 10px;
+    padding: 8px 12px;
     cursor: pointer;
-    box-shadow: 2px 2px 0 var(--gb-darkest);
+    box-shadow: 2px 2px 0 #000000;
     transition: all 0.1s ease;
     text-transform: uppercase;
+    font-weight: bold;
 }
 
 .btn-retro:hover {
-    background: var(--gb-darkest);
+    background: #000000;
+    color: #ffffff;
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--gb-darkest);
+    box-shadow: 3px 3px 0 #000000;
 }
 
 .btn-retro:active {
     transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--gb-darkest);
+    box-shadow: 1px 1px 0 #000000;
 }
 
 .btn-retro.btn-primary {
     background: var(--poke-red);
-    border-color: var(--poke-red-dark);
+    color: #ffffff;
 }
 
 .btn-retro.btn-primary:hover {
@@ -325,11 +279,12 @@ html, body {
 }
 
 .btn-retro.btn-accent {
-    background: #3b5998;
+    background: #000000;
+    color: #ffffff;
 }
 
 .btn-retro.btn-accent:hover {
-    background: #273a64;
+    background: #333333;
 }
 
 /* Output Display Box */
@@ -343,13 +298,12 @@ html, body {
     width: 100%;
     height: 110px;
     overflow-y: auto;
-    background-color: var(--gb-light);
-    border: 2px solid var(--gb-darkest);
-    color: var(--gb-darkest);
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    color: #000000;
     font-family: var(--font-cli);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     padding: 8px;
-    border-radius: 2px;
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -358,21 +312,22 @@ html, body {
 .sprites-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
     max-height: 110px;
     overflow-y: auto;
-    padding: 4px;
+    padding: 6px;
+    background-color: #ffffff;
+    border: 2px solid #000000;
 }
 
 .sprite-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: var(--gb-light);
-    border: 2px solid var(--gb-darkest);
+    background: #ffffff;
+    border: 2px solid #000000;
     padding: 2px 6px;
-    border-radius: 4px;
     min-width: 56px;
 }
 
@@ -385,45 +340,45 @@ html, body {
 .sprite-name {
     font-size: 0.5rem;
     font-family: var(--font-pixel);
-    color: var(--gb-darkest);
+    color: #000000;
     text-align: center;
 }
 
 .special-token-badge {
-    background: var(--gb-dark);
-    color: #fff;
+    background: #000000;
+    color: #ffffff;
     font-family: var(--font-pixel);
     font-size: 0.55rem;
     padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid var(--gb-darkest);
+    border: 1px solid #000000;
 }
 
 /* Highlights */
 .highlight-ambiguous {
     color: var(--amber-warn);
     font-weight: bold;
-    background: rgba(224, 120, 0, 0.15);
+    background: rgba(217, 119, 6, 0.2);
+    padding: 0 2px;
 }
 
 .highlight-error {
     color: var(--red-error);
     font-weight: bold;
-    background: rgba(204, 0, 0, 0.15);
+    background: rgba(220, 38, 38, 0.2);
+    padding: 0 2px;
 }
 
 /* Status Bar */
 .status-bar {
-    background-color: var(--gb-dark);
-    color: var(--gb-lightest);
+    background-color: #000000;
+    color: #ffffff;
     font-family: var(--font-pixel);
     font-size: 0.55rem;
     padding: 6px 10px;
-    border-radius: 2px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid var(--gb-darkest);
+    border: 1px solid #000000;
 }
 
 .status-text {
