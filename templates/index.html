@@ -3,62 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POKÉMON CIPHER // RED VERSION</title>
+    <title>POKÉMON RED // CIPHER CLI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="gameboy-frame">
-        <div class="gb-header">
-            <h1>GAME BOY // POKÉMON CIPHER</h1>
-            <div class="power-indicator">
-                <div class="power-led"></div>
-                <span>POWER</span>
-            </div>
+    <!-- Retro Scanlines & Vignette -->
+    <div class="scanlines"></div>
+
+    <!-- Animated Pokémon Red Overworld / Battle Scene Background -->
+    <div class="game-scene">
+        <div class="sky-bg"></div>
+        <div class="mountain-range"></div>
+
+        <!-- Animated Grass & Trees -->
+        <div class="environment-layer">
+            <div class="tree tree-left-1"></div>
+            <div class="tree tree-left-2"></div>
+            <div class="tree tree-right-1"></div>
+            <div class="tree tree-right-2"></div>
+            <div class="grass-tuft grass-1"></div>
+            <div class="grass-tuft grass-2"></div>
+            <div class="grass-tuft grass-3"></div>
         </div>
 
-        <div class="screen-bezel">
-            <div class="screen">
-                <!-- CLI Input Section -->
-                <div class="section-box">
-                    <div class="section-label">
-                        <span>&gt; INPUT TERMINAL</span>
-                        <span>[ASCII 32-126]</span>
-                    </div>
-                    <textarea id="inputArea" class="cli-input" placeholder="Type text to encrypt or Pokémon names to decrypt..."></textarea>
-                </div>
-
-                <!-- Controls Bar -->
-                <div class="controls-bar">
-                    <button id="btnEncrypt" class="btn-retro btn-primary">ENCRYPT → POKÉMON</button>
-                    <button id="btnDecrypt" class="btn-retro btn-primary">DECRYPT → TEXT</button>
-                    <button id="btnToggleSprites" class="btn-retro btn-accent">SPRITES: OFF 📝</button>
-                    <button id="btnSwap" class="btn-retro">SWAP ↕</button>
-                    <button id="btnCopy" class="btn-retro">COPY</button>
-                    <button id="btnClear" class="btn-retro">CLEAR</button>
-                </div>
-
-                <!-- Output Display Section -->
-                <div class="section-box" style="flex: 1; display: flex; flex-direction: column;">
-                    <div class="section-label">
-                        <span>&gt; OUTPUT CONSOLE</span>
-                        <span id="outputTypeInfo">[{{ num_regions }} REGIONS]</span>
-                    </div>
-
-                    <!-- Text Output -->
-                    <div id="outputArea" class="output-display" tabindex="0"></div>
-
-                    <!-- Sprites Output (Hidden by default) -->
-                    <div id="spritesGrid" class="sprites-grid" style="display: none;"></div>
-                </div>
-
-                <!-- Status Bar -->
-                <div class="status-bar">
-                    <span id="statusText" class="status-text">READY</span>
-                    <span id="statusTime"></span>
-                </div>
-            </div>
+        <!-- Animated Pixel Characters in Background -->
+        <div class="character-layer">
+            <div class="sprite-actor red-trainer"></div>
+            <div class="sprite-actor pikachu-idle"></div>
         </div>
     </div>
+
+    <!-- Centered Retro CLI Terminal Container -->
+    <main class="cli-modal-wrapper">
+        <div class="gameboy-frame">
+            <div class="gb-header">
+                <div class="brand-title">POKÉMON RED // CIPHER CLI</div>
+                <div class="power-indicator">
+                    <div class="power-led"></div>
+                    <span>BATTERY</span>
+                </div>
+            </div>
+
+            <div class="screen-bezel">
+                <div class="screen">
+                    <!-- CLI Input Section -->
+                    <div class="section-box">
+                        <div class="section-label">
+                            <span>&gt; INPUT TERMINAL</span>
+                            <span>[ASCII 32-126]</span>
+                        </div>
+                        <textarea id="inputArea" class="cli-input" placeholder="Type text to encrypt or Pokémon names to decrypt..."></textarea>
+                    </div>
+
+                    <!-- Controls Bar -->
+                    <div class="controls-bar">
+                        <button id="btnEncrypt" class="btn-retro btn-primary">ENCRYPT → POKÉMON</button>
+                        <button id="btnDecrypt" class="btn-retro btn-primary">DECRYPT → TEXT</button>
+                        <button id="btnToggleSprites" class="btn-retro btn-accent">SPRITES: OFF 📝</button>
+                        <button id="btnSwap" class="btn-retro">SWAP ↕</button>
+                        <button id="btnCopy" class="btn-retro">COPY</button>
+                        <button id="btnClear" class="btn-retro">CLEAR</button>
+                    </div>
+
+                    <!-- Output Display Section -->
+                    <div class="section-box output-section-box">
+                        <div class="section-label">
+                            <span>&gt; OUTPUT CONSOLE</span>
+                            <span id="outputTypeInfo">[{{ num_regions }} REGIONS]</span>
+                        </div>
+
+                        <!-- Text Output -->
+                        <div id="outputArea" class="output-display" tabindex="0"></div>
+
+                        <!-- Sprites Output (Hidden by default) -->
+                        <div id="spritesGrid" class="sprites-grid" style="display: none;"></div>
+                    </div>
+
+                    <!-- Status Bar -->
+                    <div class="status-bar">
+                        <span id="statusText" class="status-text">READY</span>
+                        <span id="statusTime"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

@@ -5,8 +5,8 @@
     --gb-dark: #306230;
     --gb-light: #8bac0f;
     --gb-lightest: #9bbc0f;
-    --poke-red: #c82020;
-    --poke-red-dark: #8b1010;
+    --poke-red: #cc1111;
+    --poke-red-dark: #7a0909;
     --poke-gold: #f8b800;
     --amber-warn: #e07800;
     --red-error: #cc0000;
@@ -20,28 +20,181 @@
     padding: 0;
 }
 
-body {
-    background-color: #1a1a1a;
-    color: var(--gb-darkest);
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     font-family: var(--font-pixel);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+    background-color: #0d1b0d;
 }
 
-/* GameBoy / Terminal Container Frame */
+/* Retro CRT Scanline Effect */
+.scanlines {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.25) 50%
+    ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+    );
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+    z-index: 99;
+}
+
+/* Pokémon Red Animated Overworld Background */
+.game-scene {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #8bac0f;
+    overflow: hidden;
+}
+
+/* Sky & Horizon */
+.sky-bg {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 40%;
+    background: linear-gradient(to bottom, #306230, #8bac0f);
+}
+
+.mountain-range {
+    position: absolute;
+    top: 30%;
+    width: 100%;
+    height: 120px;
+    background-image: radial-gradient(circle at 50% 100%, #0f380f 40%, transparent 41%);
+    background-size: 160px 120px;
+    background-repeat: repeat-x;
+    opacity: 0.7;
+}
+
+/* Environment Layer */
+.environment-layer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 60%;
+    background-color: #9bbc0f;
+    border-top: 6px solid #0f380f;
+}
+
+/* Animated Trees */
+.tree {
+    position: absolute;
+    width: 48px;
+    height: 64px;
+    background: #0f380f;
+    box-shadow: inset -4px -4px 0 #306230;
+    border-radius: 8px 8px 0 0;
+}
+
+.tree::after {
+    content: '';
+    position: absolute;
+    bottom: -16px;
+    left: 18px;
+    width: 12px;
+    height: 16px;
+    background: #306230;
+}
+
+.tree-left-1 { left: 5%; bottom: 35%; }
+.tree-left-2 { left: 12%; bottom: 15%; }
+.tree-right-1 { right: 6%; bottom: 40%; }
+.tree-right-2 { right: 14%; bottom: 20%; }
+
+/* Animated Grass Tufts */
+.grass-tuft {
+    position: absolute;
+    width: 16px;
+    height: 12px;
+    background: #306230;
+    clip-path: polygon(0% 100%, 25% 0%, 50% 100%, 75% 0%, 100% 100%);
+    animation: sway 3s ease-in-out infinite alternate;
+}
+
+@keyframes sway {
+    0% { transform: skewX(-5deg); }
+    100% { transform: skewX(5deg); }
+}
+
+.grass-1 { left: 22%; bottom: 45%; }
+.grass-2 { right: 28%; bottom: 30%; animation-delay: 1s; }
+.grass-3 { left: 45%; bottom: 12%; animation-delay: 1.5s; }
+
+/* Animated Pixel Characters */
+.character-layer {
+    position: absolute;
+    bottom: 25px;
+    left: 0;
+    width: 100%;
+    height: 60px;
+}
+
+.red-trainer {
+    position: absolute;
+    left: 8%;
+    bottom: 10px;
+    width: 40px;
+    height: 40px;
+    background: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/1.png') no-repeat center/contain;
+    image-rendering: pixelated;
+    animation: walk-bounce 1s infinite alternate;
+}
+
+.pikachu-idle {
+    position: absolute;
+    right: 10%;
+    bottom: 15px;
+    width: 44px;
+    height: 44px;
+    background: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png') no-repeat center/contain;
+    image-rendering: pixelated;
+    animation: hop 1.2s ease-in-out infinite;
+}
+
+@keyframes walk-bounce {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-4px); }
+}
+
+@keyframes hop {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+/* Centered CLI Interface Modal Box */
+.cli-modal-wrapper {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    padding: 16px;
+}
+
 .gameboy-frame {
     background-color: var(--poke-red);
-    border: 6px solid var(--poke-red-dark);
-    border-radius: 16px 16px 40px 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 2px 5px rgba(255, 255, 255, 0.4);
+    border: 5px solid var(--poke-red-dark);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.4);
     width: 100%;
-    max-width: 900px;
-    padding: 24px;
-    position: relative;
+    max-width: 860px;
+    padding: 20px;
 }
 
 .gb-header {
@@ -49,25 +202,21 @@ body {
     justify-content: space-between;
     align-items: center;
     color: #fff;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
     text-shadow: 2px 2px 0 #000;
-}
-
-.gb-header h1 {
-    font-size: 1.2rem;
-    letter-spacing: 1px;
 }
 
 .power-indicator {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.6rem;
+    font-size: 0.55rem;
 }
 
 .power-led {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background-color: #ff3333;
     border-radius: 50%;
     box-shadow: 0 0 8px #ff3333;
@@ -76,15 +225,15 @@ body {
 
 @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+    50% { opacity: 0.5; }
 }
 
 /* Screen Housing */
 .screen-bezel {
-    background-color: #2b2b2b;
-    border: 4px solid #111;
-    border-radius: 10px;
-    padding: 16px;
+    background-color: #1c1c1c;
+    border: 3px solid #000;
+    border-radius: 8px;
+    padding: 12px;
     box-shadow: inset 0 0 10px #000;
 }
 
@@ -92,57 +241,53 @@ body {
     background-color: var(--gb-lightest);
     border: 3px solid var(--gb-darkest);
     border-radius: 4px;
-    padding: 16px;
-    min-height: 480px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    box-shadow: inset 0 0 15px rgba(15, 56, 15, 0.3);
+    gap: 12px;
 }
 
-/* Retro Section Box */
+/* Section Box */
 .section-box {
-    border: 3px double var(--gb-darkest);
-    background-color: rgba(139, 172, 15, 0.2);
-    padding: 12px;
-    border-radius: 4px;
+    border: 2px double var(--gb-darkest);
+    background-color: rgba(139, 172, 15, 0.15);
+    padding: 10px;
+    border-radius: 2px;
 }
 
 .section-label {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: bold;
     color: var(--gb-darkest);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
 }
 
 /* CLI Textarea */
 .cli-input {
     width: 100%;
-    height: 90px;
+    height: 75px;
     background-color: var(--gb-light);
     border: 2px solid var(--gb-darkest);
     color: var(--gb-darkest);
     font-family: var(--font-cli);
-    font-size: 1.35rem;
+    font-size: 1.3rem;
     padding: 8px;
-    resize: vertical;
+    resize: none;
     outline: none;
     border-radius: 2px;
 }
 
 .cli-input:focus {
     background-color: #9ecc0f;
-    box-shadow: 0 0 4px var(--gb-darkest);
 }
 
-/* Button Bar */
+/* Button Controls Bar */
 .controls-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     justify-content: center;
 }
 
@@ -151,8 +296,8 @@ body {
     color: #fff;
     border: 2px solid var(--gb-darkest);
     font-family: var(--font-pixel);
-    font-size: 0.65rem;
-    padding: 10px 14px;
+    font-size: 0.55rem;
+    padding: 8px 10px;
     cursor: pointer;
     box-shadow: 2px 2px 0 var(--gb-darkest);
     transition: all 0.1s ease;
@@ -180,25 +325,30 @@ body {
 }
 
 .btn-retro.btn-accent {
-    background: #4a6fa5;
+    background: #3b5998;
 }
 
 .btn-retro.btn-accent:hover {
-    background: #334e75;
+    background: #273a64;
 }
 
 /* Output Display Box */
+.output-section-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 .output-display {
     width: 100%;
-    min-height: 120px;
-    max-height: 220px;
+    height: 110px;
     overflow-y: auto;
     background-color: var(--gb-light);
     border: 2px solid var(--gb-darkest);
     color: var(--gb-darkest);
     font-family: var(--font-cli);
-    font-size: 1.35rem;
-    padding: 10px;
+    font-size: 1.3rem;
+    padding: 8px;
     border-radius: 2px;
     white-space: pre-wrap;
     word-break: break-word;
@@ -208,9 +358,11 @@ body {
 .sprites-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
-    margin-top: 8px;
+    max-height: 110px;
+    overflow-y: auto;
+    padding: 4px;
 }
 
 .sprite-card {
@@ -219,22 +371,21 @@ body {
     align-items: center;
     background: var(--gb-light);
     border: 2px solid var(--gb-darkest);
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: 4px;
-    min-width: 64px;
+    min-width: 56px;
 }
 
 .sprite-img {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     image-rendering: pixelated;
 }
 
 .sprite-name {
-    font-size: 0.6rem;
+    font-size: 0.5rem;
     font-family: var(--font-pixel);
     color: var(--gb-darkest);
-    margin-top: 2px;
     text-align: center;
 }
 
@@ -242,8 +393,8 @@ body {
     background: var(--gb-dark);
     color: #fff;
     font-family: var(--font-pixel);
-    font-size: 0.6rem;
-    padding: 6px 10px;
+    font-size: 0.55rem;
+    padding: 4px 8px;
     border-radius: 4px;
     border: 1px solid var(--gb-darkest);
 }
@@ -253,14 +404,12 @@ body {
     color: var(--amber-warn);
     font-weight: bold;
     background: rgba(224, 120, 0, 0.15);
-    padding: 0 2px;
 }
 
 .highlight-error {
     color: var(--red-error);
     font-weight: bold;
     background: rgba(204, 0, 0, 0.15);
-    padding: 0 2px;
 }
 
 /* Status Bar */
@@ -268,8 +417,8 @@ body {
     background-color: var(--gb-dark);
     color: var(--gb-lightest);
     font-family: var(--font-pixel);
-    font-size: 0.6rem;
-    padding: 8px 12px;
+    font-size: 0.55rem;
+    padding: 6px 10px;
     border-radius: 2px;
     display: flex;
     justify-content: space-between;
@@ -283,16 +432,15 @@ body {
     white-space: nowrap;
 }
 
-/* Responsive adjustments */
 @media (max-width: 600px) {
-    .gb-header h1 {
-        font-size: 0.9rem;
+    .gb-header {
+        font-size: 0.7rem;
     }
     .btn-retro {
-        font-size: 0.55rem;
-        padding: 8px 10px;
+        font-size: 0.5rem;
+        padding: 6px 8px;
     }
     .gameboy-frame {
-        padding: 14px;
+        padding: 12px;
     }
 }
