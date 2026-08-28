@@ -1,0 +1,298 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+    --gb-darkest: #0f380f;
+    --gb-dark: #306230;
+    --gb-light: #8bac0f;
+    --gb-lightest: #9bbc0f;
+    --poke-red: #c82020;
+    --poke-red-dark: #8b1010;
+    --poke-gold: #f8b800;
+    --amber-warn: #e07800;
+    --red-error: #cc0000;
+    --font-pixel: 'Press Start 2P', monospace, cursive;
+    --font-cli: 'VT323', monospace, monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #1a1a1a;
+    color: var(--gb-darkest);
+    font-family: var(--font-pixel);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* GameBoy / Terminal Container Frame */
+.gameboy-frame {
+    background-color: var(--poke-red);
+    border: 6px solid var(--poke-red-dark);
+    border-radius: 16px 16px 40px 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 2px 5px rgba(255, 255, 255, 0.4);
+    width: 100%;
+    max-width: 900px;
+    padding: 24px;
+    position: relative;
+}
+
+.gb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    margin-bottom: 16px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.gb-header h1 {
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+}
+
+.power-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.6rem;
+}
+
+.power-led {
+    width: 12px;
+    height: 12px;
+    background-color: #ff3333;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #ff3333;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Screen Housing */
+.screen-bezel {
+    background-color: #2b2b2b;
+    border: 4px solid #111;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: inset 0 0 10px #000;
+}
+
+.screen {
+    background-color: var(--gb-lightest);
+    border: 3px solid var(--gb-darkest);
+    border-radius: 4px;
+    padding: 16px;
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: inset 0 0 15px rgba(15, 56, 15, 0.3);
+}
+
+/* Retro Section Box */
+.section-box {
+    border: 3px double var(--gb-darkest);
+    background-color: rgba(139, 172, 15, 0.2);
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.section-label {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--gb-darkest);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* CLI Textarea */
+.cli-input {
+    width: 100%;
+    height: 90px;
+    background-color: var(--gb-light);
+    border: 2px solid var(--gb-darkest);
+    color: var(--gb-darkest);
+    font-family: var(--font-cli);
+    font-size: 1.35rem;
+    padding: 8px;
+    resize: vertical;
+    outline: none;
+    border-radius: 2px;
+}
+
+.cli-input:focus {
+    background-color: #9ecc0f;
+    box-shadow: 0 0 4px var(--gb-darkest);
+}
+
+/* Button Bar */
+.controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-retro {
+    background: var(--gb-dark);
+    color: #fff;
+    border: 2px solid var(--gb-darkest);
+    font-family: var(--font-pixel);
+    font-size: 0.65rem;
+    padding: 10px 14px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--gb-darkest);
+    transition: all 0.1s ease;
+    text-transform: uppercase;
+}
+
+.btn-retro:hover {
+    background: var(--gb-darkest);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--gb-darkest);
+}
+
+.btn-retro:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--gb-darkest);
+}
+
+.btn-retro.btn-primary {
+    background: var(--poke-red);
+    border-color: var(--poke-red-dark);
+}
+
+.btn-retro.btn-primary:hover {
+    background: var(--poke-red-dark);
+}
+
+.btn-retro.btn-accent {
+    background: #4a6fa5;
+}
+
+.btn-retro.btn-accent:hover {
+    background: #334e75;
+}
+
+/* Output Display Box */
+.output-display {
+    width: 100%;
+    min-height: 120px;
+    max-height: 220px;
+    overflow-y: auto;
+    background-color: var(--gb-light);
+    border: 2px solid var(--gb-darkest);
+    color: var(--gb-darkest);
+    font-family: var(--font-cli);
+    font-size: 1.35rem;
+    padding: 10px;
+    border-radius: 2px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Sprite Container */
+.sprites-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.sprite-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--gb-light);
+    border: 2px solid var(--gb-darkest);
+    padding: 4px 8px;
+    border-radius: 4px;
+    min-width: 64px;
+}
+
+.sprite-img {
+    width: 48px;
+    height: 48px;
+    image-rendering: pixelated;
+}
+
+.sprite-name {
+    font-size: 0.6rem;
+    font-family: var(--font-pixel);
+    color: var(--gb-darkest);
+    margin-top: 2px;
+    text-align: center;
+}
+
+.special-token-badge {
+    background: var(--gb-dark);
+    color: #fff;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--gb-darkest);
+}
+
+/* Highlights */
+.highlight-ambiguous {
+    color: var(--amber-warn);
+    font-weight: bold;
+    background: rgba(224, 120, 0, 0.15);
+    padding: 0 2px;
+}
+
+.highlight-error {
+    color: var(--red-error);
+    font-weight: bold;
+    background: rgba(204, 0, 0, 0.15);
+    padding: 0 2px;
+}
+
+/* Status Bar */
+.status-bar {
+    background-color: var(--gb-dark);
+    color: var(--gb-lightest);
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    padding: 8px 12px;
+    border-radius: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--gb-darkest);
+}
+
+.status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .gb-header h1 {
+        font-size: 0.9rem;
+    }
+    .btn-retro {
+        font-size: 0.55rem;
+        padding: 8px 10px;
+    }
+    .gameboy-frame {
+        padding: 14px;
+    }
+}
