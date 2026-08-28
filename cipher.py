@@ -153,7 +153,7 @@ def decode_flexible_error_reporting(encoded_pokemon_string):
             elif len(valid_matches) > 1:
                 # Case 2: AMBIGUITY - Multiple characters fit the current state
                 # Output the simple list format marker
-                ambiguous_chars_str = ",".join(sorted(list(set(valid_matches)))) # Use set for unique chars
+                ambiguous_chars_str = ",".join(sorted(set(valid_matches))) # Use set for unique chars
                 output_marker = f"[{ambiguous_chars_str}]"
                 # print(f"[DECODE AMBIGUITY] Name: '{name}' -> Outputting: {output_marker}") # Optional log
                 decoded_message_parts.append(output_marker)
@@ -162,7 +162,7 @@ def decode_flexible_error_reporting(encoded_pokemon_string):
             else: # len(valid_matches) == 0
                 # Case 3: DECODING ERROR (State Mismatch)
                 # Output all potential chars for this Pokemon, ignoring state
-                all_possible_chars = sorted(list(set([mapping[0] for mapping in possible_mappings])))
+                all_possible_chars = sorted({mapping[0] for mapping in possible_mappings})
                 all_chars_str = ",".join(all_possible_chars)
                 # Use the simple list format marker for errors too
                 output_marker = f"[{all_chars_str}]"
