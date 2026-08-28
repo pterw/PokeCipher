@@ -86,13 +86,13 @@ for region_index, region_name in enumerate(region_names):
         # Store tuple (character, region index)
         name_to_mappings[pokemon_name].append((char, region_index))
 print(f"Precomputed detailed lookup table with {len(name_to_mappings)} unique Pokémon names.")
+region_list_values = list(regions.values())
 # --- End of precomputation ---
 
 # Encoding function
 def encode_message(message):
     letter_counts = {}
     encoded_message_parts = []
-    region_list_values = list(regions.values())
     for char in message:
         ascii_value = ord(char)
         if 32 <= ascii_value <= 126:
