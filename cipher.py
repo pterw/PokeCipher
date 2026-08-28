@@ -123,9 +123,14 @@ def decode_flexible_error_reporting(encoded_pokemon_string):
         # Handle special tags first
         if name == "[NEWLINE]": decoded_message_parts.append('\n'); continue
         elif name == "[RETURN]": decoded_message_parts.append('\r'); continue
-        elif name.startswith("[CHAR:") :
-            try: decoded_message_parts.append(chr(int(name[6:-1])));
-            except: decoded_message_parts.append("<?>");
+        elif name.startswith("[CHAR:"):
+            try:
+                char_code_str = name[6:-1]
+                if len(char_code_str) > 10:
+                    raise ValueError("String too long")
+                decoded_message_parts.append(chr(int(char_code_str)))
+            except ValueError:
+                decoded_message_parts.append("<?>")
             continue
         elif name.startswith("[err:") :
             decoded_message_parts.append(f"<?error encoding: {name}>"); continue
