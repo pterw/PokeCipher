@@ -3,89 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POKÉMON RED // CIPHER CLI</title>
+    <title>POKÉMON FIRERED // DUAL-SCREEN CIPHER DS</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- Retro Scanlines & Vignette -->
+    <!-- Retro Scanlines -->
     <div class="scanlines"></div>
 
-    <!-- Animated Pokémon Red Overworld / Battle Scene Background -->
-    <div class="game-scene">
-        <div class="sky-bg"></div>
-        <div class="mountain-range"></div>
-
-        <!-- Animated Grass & Trees -->
-        <div class="environment-layer">
-            <div class="tree tree-left-1"></div>
-            <div class="tree tree-left-2"></div>
-            <div class="tree tree-right-1"></div>
-            <div class="tree tree-right-2"></div>
-            <div class="grass-tuft grass-1"></div>
-            <div class="grass-tuft grass-2"></div>
-            <div class="grass-tuft grass-3"></div>
-        </div>
-
-        <!-- Animated Pixel Characters in Background -->
-        <div class="character-layer">
-            <div class="sprite-actor red-trainer"></div>
-            <div class="sprite-actor pikachu-idle"></div>
-        </div>
-    </div>
-
-    <!-- Centered Retro CLI Terminal Container -->
-    <main class="cli-modal-wrapper">
-        <div class="gameboy-frame">
-            <div class="gb-header">
-                <div class="brand-title">POKÉMON RED // CIPHER CLI</div>
-                <div class="power-indicator">
-                    <div class="power-led"></div>
-                    <span>BATTERY</span>
+    <!-- NINTENDO DS HANDHELD SYSTEM FRAME -->
+    <main class="ds-system-wrapper">
+        <div class="ds-body">
+            <!-- DS Hinge & Brand Header -->
+            <div class="ds-hinge">
+                <div class="ds-logo">NINTENDO DS // FIRERED CIPHER</div>
+                <div class="ds-status-lights">
+                    <span class="light-label">POWER</span>
+                    <div class="led-light power-led"></div>
+                    <span class="light-label">WIRELESS</span>
+                    <div class="led-light wifi-led"></div>
                 </div>
             </div>
 
-            <div class="screen-bezel">
-                <div class="screen">
-                    <!-- CLI Input Section -->
-                    <div class="section-box">
-                        <div class="section-label">
-                            <span>&gt; INPUT TERMINAL</span>
-                            <span>[ASCII 32-126]</span>
-                        </div>
-                        <textarea id="inputArea" class="cli-input" placeholder="Type text to encrypt or Pokémon names to decrypt..."></textarea>
+            <!-- TOP SCREEN: OUTPUT CONSOLE & SPRITE VIEWPORT -->
+            <section class="ds-screen-casing top-casing">
+                <div class="ds-screen top-screen">
+                    <div class="screen-header">
+                        <span class="header-tag">&gt; TOP SCREEN // OUTPUT VIEWPORT</span>
+                        <span id="outputTypeInfo" class="header-badge">[{{ num_regions }} REGIONS]</span>
                     </div>
 
-                    <!-- Controls Bar -->
-                    <div class="controls-bar">
-                        <button id="btnEncrypt" class="btn-retro btn-primary">ENCRYPT → POKÉMON</button>
-                        <button id="btnDecrypt" class="btn-retro btn-primary">DECRYPT → TEXT</button>
-                        <button id="btnToggleSprites" class="btn-retro btn-accent">SPRITES: OFF 📝</button>
-                        <button id="btnSwap" class="btn-retro">SWAP ↕</button>
-                        <button id="btnCopy" class="btn-retro">COPY</button>
-                        <button id="btnClear" class="btn-retro">CLEAR</button>
-                    </div>
-
-                    <!-- Output Display Section -->
-                    <div class="section-box output-section-box">
-                        <div class="section-label">
-                            <span>&gt; OUTPUT CONSOLE</span>
-                            <span id="outputTypeInfo">[{{ num_regions }} REGIONS]</span>
-                        </div>
-
+                    <!-- Main Output Display Container -->
+                    <div class="viewport-box">
                         <!-- Text Output -->
-                        <div id="outputArea" class="output-display" tabindex="0"></div>
+                        <div id="outputArea" class="output-display" tabindex="0">
+                            <span class="placeholder-text">Encrypted Pokémon names or decrypted text will render here...</span>
+                        </div>
 
-                        <!-- Sprites Output (Hidden by default) -->
+                        <!-- Sprites Output (Toggleable) -->
                         <div id="spritesGrid" class="sprites-grid" style="display: none;"></div>
                     </div>
 
-                    <!-- Status Bar -->
-                    <div class="status-bar">
-                        <span id="statusText" class="status-text">READY</span>
-                        <span id="statusTime"></span>
+                    <!-- Output Status Footer -->
+                    <div class="screen-footer">
+                        <span id="statusText" class="status-msg">SYSTEM READY</span>
+                        <span id="statusTime" class="status-time"></span>
                     </div>
                 </div>
+            </section>
+
+            <!-- MIDDLE HINGE SEPARATOR -->
+            <div class="ds-middle-bar">
+                <div class="speaker-grill left-speaker"></div>
+                <div class="ds-hinge-accent"></div>
+                <div class="speaker-grill right-speaker"></div>
             </div>
+
+            <!-- BOTTOM SCREEN: TOUCH INPUT TERMINAL & SHADCN CONTROL PANEL -->
+            <section class="ds-screen-casing bottom-casing">
+                <div class="ds-screen bottom-screen">
+                    <div class="screen-header">
+                        <span class="header-tag">&gt; BOTTOM TOUCH SCREEN // CLI INPUT</span>
+                        <span class="header-badge">ASCII 32-126</span>
+                    </div>
+
+                    <!-- CLI Input Terminal -->
+                    <div class="input-card">
+                        <textarea id="inputArea" class="cli-input-touch" placeholder="Type text to encrypt or Pokémon names to decrypt..."></textarea>
+                    </div>
+
+                    <!-- Control Action Bar (Shadcn UI Principles) -->
+                    <div class="shadcn-button-grid">
+                        <button id="btnEncrypt" class="shadcn-btn btn-primary">
+                            <span class="btn-icon">⚡</span> ENCRYPT → POKÉMON
+                        </button>
+                        <button id="btnDecrypt" class="shadcn-btn btn-primary">
+                            <span class="btn-icon">🔓</span> DECRYPT → TEXT
+                        </button>
+                        <button id="btnToggleSprites" class="shadcn-btn btn-secondary">
+                            <span class="btn-icon">👾</span> SPRITES: OFF
+                        </button>
+                        <button id="btnSwap" class="shadcn-btn btn-outline">
+                            <span class="btn-icon">↕</span> SWAP
+                        </button>
+                        <button id="btnCopy" class="shadcn-btn btn-outline">
+                            <span class="btn-icon">📋</span> COPY
+                        </button>
+                        <button id="btnClear" class="shadcn-btn btn-ghost">
+                            <span class="btn-icon">✕</span> CLEAR
+                        </button>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 

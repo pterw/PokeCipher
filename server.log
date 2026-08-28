@@ -1,8 +1,0 @@
- * Serving Flask app 'app'
- * Debug mode: on
-Address already in use
-Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
-127.0.0.1 - - [28/Aug/2026 05:46:43] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [28/Aug/2026 05:46:43] "GET /static/css/style.css HTTP/1.1" 200 -
-127.0.0.1 - - [28/Aug/2026 05:46:43] "GET /static/js/app.js HTTP/1.1" 200 -
-127.0.0.1 - - [28/Aug/2026 05:46:44] "POST /api/encode HTTP/1.1" 200 -
