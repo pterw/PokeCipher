@@ -53,6 +53,12 @@ Thumbs.db
 
 # --- Local scratch ---
 *.log
+# Agent command-output captures (stdout redirects from flaky terminal sessions).
+_*.txt
+
+# --- Agent tooling ---
+# Worktree-local skill/workflow definitions; not part of the project.
+.agent/
 
 # --- Local working files, never committed ---
 # Handoff notes for AI agent sessions. Lives on disk, but must not reach main.
