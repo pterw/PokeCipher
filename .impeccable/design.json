@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-29T20:20:00Z",
+  "title": "Design System: PokéCipher",
+  "extensions": {
+    "colorMeta": {
+      "lcd-deep": {
+        "role": "neutral",
+        "displayName": "LCD Deep",
+        "canonical": "#0f380f",
+        "tonalRamp": ["#051205", "#0a250a", "#0f380f", "#144b14", "#1a5e1a", "#2f8a2f", "#5cb85c", "#a8e0a8"]
+      },
+      "terminal-void": {
+        "role": "neutral",
+        "displayName": "Terminal Void",
+        "canonical": "#071a07",
+        "tonalRamp": ["#030d03", "#071a07", "#0b280b", "#0f350f", "#134213", "#1f631f", "#3d9c3d", "#7ac97a"]
+      },
+      "lcd-card": {
+        "role": "neutral",
+        "displayName": "LCD Card",
+        "canonical": "#14421a",
+        "tonalRamp": ["#061006", "#0c210d", "#14421a", "#1b5624", "#236b2e", "#37a047", "#63c973", "#aee5b7"]
+      },
+      "lcd-shade": {
+        "role": "neutral",
+        "displayName": "LCD Shade",
+        "canonical": "#1d4d24",
+        "tonalRamp": ["#081209", "#102a14", "#1d4d24", "#256130", "#2f7a3c", "#44ac56", "#75cd83", "#b8e6c1"]
+      },
+      "lcd-moss": {
+        "role": "neutral",
+        "displayName": "LCD Moss",
+        "canonical": "#265626",
+        "tonalRamp": ["#0a1a0a", "#122b12", "#1a3d1a", "#265626", "#337033", "#4a9a4a", "#7bc07b", "#b5deb5"]
+      },
+      "lcd-border": {
+        "role": "neutral",
+        "displayName": "LCD Border",
+        "canonical": "#2c5c2c",
+        "tonalRamp": ["#0c190c", "#152915", "#1e3f1e", "#2c5c2c", "#3a7a3a", "#52a352", "#84c684", "#bce0bc"]
+      },
+      "lcd-sage": {
+        "role": "neutral",
+        "displayName": "LCD Sage",
+        "canonical": "#9bbc8a",
+        "tonalRamp": ["#1f2b1a", "#334527", "#475f35", "#6b8a55", "#8aa572", "#9bbc8a", "#b8d0ab", "#d5e5cc"]
+      },
+      "lcd-wash": {
+        "role": "neutral",
+        "displayName": "LCD Wash",
+        "canonical": "#d7f5c4",
+        "tonalRamp": ["#2b3d24", "#405c36", "#567b49", "#7a9e6a", "#a8c894", "#d7f5c4", "#e5f8da", "#f2fcef"]
+      },
+      "cartridge-yellow": {
+        "role": "primary",
+        "displayName": "Cartridge Yellow",
+        "canonical": "#ffd100",
+        "tonalRamp": ["#332a00", "#4d3f00", "#665400", "#997e00", "#cca900", "#ffd100", "#ffdd40", "#ffe980"]
+      },
+      "lcd-olive": {
+        "role": "primary",
+        "displayName": "LCD Olive",
+        "canonical": "#8bac0f",
+        "tonalRamp": ["#1c2203", "#2b3405", "#3a4606", "#57690a", "#748c0c", "#8bac0f", "#aac93f", "#c8e07d"]
+      },
+      "signal-amber": {
+        "role": "tertiary",
+        "displayName": "Signal Amber",
+        "canonical": "#e8b93b",
+        "tonalRamp": ["#2e2508", "#453810", "#5d4a17", "#8b6f23", "#ba942f", "#e8b93b", "#f0cd72", "#f7e2ab"]
+      },
+      "signal-coral": {
+        "role": "tertiary",
+        "displayName": "Signal Coral",
+        "canonical": "#e0674f",
+        "tonalRamp": ["#2d140f", "#432017", "#5a291f", "#86402f", "#b3563f", "#e0674f", "#e98d7a", "#f2b4a6"]
+      },
+      "signal-ice": {
+        "role": "tertiary",
+        "displayName": "Signal Ice",
+        "canonical": "#7fb3d5",
+        "tonalRamp": ["#19242b", "#263640", "#334855", "#4d6c80", "#668fab", "#7fb3d5", "#a5c9e1", "#cbdfee"]
+      },
+      "alert-rust": {
+        "role": "tertiary",
+        "displayName": "Alert Rust",
+        "canonical": "#b03a2e",
+        "tonalRamp": ["#230c09", "#35120e", "#461712", "#69231b", "#8c2e24", "#b03a2e", "#c66a60", "#dc9b93"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The PokéCipher wordmark only. Press Start 2P has no comfortable reading size."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings. Still Press Start 2P, still only a few words at a time."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Hero copy, terminal transcript, decoded results. VT323 carries everything that is read."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, character counters, helper text. Uppercase with open tracking."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "blink",
+        "value": "poke-blink 1.1s steps(1, end) infinite",
+        "purpose": "The terminal block cursor. Hard on/off with steps(); never a fade."
+      },
+      {
+        "name": "color-only",
+        "value": "transition: background-color 150ms, color 150ms, border-color 150ms",
+        "purpose": "The only permitted state transition. Colour shifts, never lift, scale or blur."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single yellow-filled element on the page. Reserved for the main action.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Encode to Pokemon</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; height: 36px; padding: 0 16px; font-family: var(--font-terminal), VT323, ui-monospace, monospace; font-size: 14px; border-width: 1px; border-style: solid; border-radius: 0; cursor: pointer; transition: background-color 150ms, color 150ms, border-color 150ms; } .ds-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px #8bac0f; } .ds-btn-primary { background: #ffd100; color: #0f380f; border-color: #ffd100; } .ds-btn-primary:hover { background: #e6bc00; border-color: #e6bc00; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Equal-weight alternate action. Moss fill, washed text.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Decode to text</button>",
+      "css": ".ds-btn-secondary { background: #265626; color: #d7f5c4; border-color: #2c5c2c; } .ds-btn-secondary:hover { background: #1e451e; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Tertiary action. Border only, no fill until hover.",
+      "html": "<button class=\"ds-btn ds-btn-outline\">Swap</button>",
+      "css": ".ds-btn-outline { background: transparent; color: #d7f5c4; border-color: #2c5c2c; } .ds-btn-outline:hover { background: #265626; } .ds-btn-outline:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Terminal Panel",
+      "kind": "custom",
+      "refersTo": "terminal-panel",
+      "description": "The signature component. Chrome bar over a transcript body; interior goes darker than the page so it reads as a recessed screen. Shown here with the required cartridge-yellow border, which is not yet in the implementation.",
+      "html": "<div class=\"ds-terminal\"><div class=\"ds-terminal-chrome\">bash</div><div class=\"ds-terminal-body\"><p class=\"ds-line-cmd\"><span class=\"ds-prompt\">$ </span>encode \"Try below\"</p><p class=\"ds-line-out\">Persian Farfetch'd Shellder Bulbasaur Machoke</p><p class=\"ds-line-info\">type a message below, or \"help\"</p><p class=\"ds-line-cmd\"><span class=\"ds-prompt\">$</span> <span class=\"ds-cursor\"></span></p></div></div>",
+      "css": ".ds-terminal { border: 1px solid #ffd100; background: #071a07; font-family: var(--font-terminal), VT323, ui-monospace, monospace; } .ds-terminal-chrome { background: #265626; color: #d7f5c4; border-bottom: 1px solid #2c5c2c; padding: 6px 12px; font-size: 14px; } .ds-terminal-body { padding: 16px; font-size: 20px; line-height: 1.375; } .ds-terminal-body p { margin: 0 0 2px; } .ds-prompt { color: #ffd100; } .ds-line-cmd { color: #d7f5c4; } .ds-line-out { color: #8bac0f; } .ds-line-info { color: #9bbc8a; } .ds-cursor { display: inline-block; width: 12px; height: 20px; background: #ffd100; vertical-align: text-bottom; animation: ds-blink 1.1s steps(1, end) infinite; } @keyframes ds-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Square, bordered, recessed. Focus is an olive ring; the border colour does not change.",
+      "html": "<textarea class=\"ds-input\" rows=\"3\" placeholder=\"Type a message, or paste Pokemon names to decode.\"></textarea>",
+      "css": ".ds-input { width: 100%; background: #1d4d24; color: #d7f5c4; border: 1px solid #2c5c2c; border-radius: 0; padding: 12px; font-family: var(--font-terminal), VT323, ui-monospace, monospace; font-size: 16px; resize: vertical; } .ds-input::placeholder { color: #9bbc8a; } .ds-input:focus { outline: none; box-shadow: 0 0 0 2px #8bac0f; }"
+    },
+    {
+      "name": "Token Chip",
+      "kind": "chip",
+      "refersTo": "token-chip",
+      "description": "One unit of ciphertext as its name. The fallback when sprites are off or a sprite fails to load — a first-class state, not an error.",
+      "html": "<span class=\"ds-token\">Zubat</span> <span class=\"ds-token\">Weepinbell</span> <span class=\"ds-token\">Ponyta</span>",
+      "css": ".ds-token { display: inline-block; background: rgba(38, 86, 38, 0.6); color: #d7f5c4; border: 1px solid #2c5c2c; border-radius: 0; padding: 2px 6px; font-family: var(--font-terminal), VT323, ui-monospace, monospace; font-size: 14px; line-height: 1.6; }"
+    },
+    {
+      "name": "Decoder Markers",
+      "kind": "custom",
+      "refersTo": "token-chip",
+      "description": "The product's most distinctive output. Amber is genuine ambiguity, coral is a state mismatch, ice is an unknown name. Coral currently fails contrast and needs raising.",
+      "html": "<p class=\"ds-markers\">Hello W<span class=\"ds-marker-ambiguous\">[n,o]</span>rld! and a <span class=\"ds-marker-mismatch\">{x,y}</span> plus <span class=\"ds-marker-unknown\">&lt;?unknown: Mewtwo&gt;</span></p>",
+      "css": ".ds-markers { background: #14421a; border: 1px solid #2c5c2c; padding: 12px; margin: 0; color: #d7f5c4; font-family: var(--font-terminal), VT323, ui-monospace, monospace; font-size: 16px; line-height: 2; } .ds-marker-ambiguous { color: #e8b93b; font-weight: 600; } .ds-marker-mismatch { color: #e0674f; font-weight: 600; } .ds-marker-unknown { color: #7fb3d5; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Terminal",
+    "overview": "A researcher's command line for reading Pokédex data. The cipher is not presented as a toy trick but as instrument output: you type at a prompt, the machine answers in a transcript, and when the machine is uncertain it says so in its own notation rather than guessing. The $ prompt, the monospace transcript and the blinking block cursor are the spine of the identity.\n\nThe surface is a four-tone Game Boy LCD. Depth is carried entirely by stepped greens — five of them, from near-black #0f380f up to #2c5c2c — with no shadows and no rounded corners anywhere. One warm colour, cartridge yellow, exists in an otherwise wholly green world, which is why it can mean something.\n\nThis world is semi-settled and explicitly iterative. The Game Boy greens are good but not sacred: they hold until they fail the squint test or something better earns the place. The type pairing was a ship-fast choice and self-hosted retro faces have not been explored. Treatments here are meant to be tried, looked at, and reversed without ceremony — a reversal is the process working.",
+    "keyCharacteristics": [
+      "Four-tone LCD green, tonal depth, zero shadow, zero radius",
+      "One warm accent (#ffd100) in an otherwise green system",
+      "Terminal transcript as the primary voice",
+      "Uncertainty rendered as notation, never hidden",
+      "Every surface bordered; nothing floats"
+    ],
+    "rules": [
+      {
+        "name": "The One Warm Thing Rule",
+        "body": "Yellow is the only warm colour permitted in the chrome. If a second warm accent appears, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal Reservation Rule",
+        "body": "Amber, coral and ice mean decoder states and nothing else. Never reuse a signal colour for form validation, hover, or emphasis — an empty-input error must not borrow coral from corrupted ciphertext.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pixel Sparingly Rule",
+        "body": "Press Start 2P appears at the wordmark and section headings only. It has no lowercase rhythm and no comfortable reading size; using it for more than a few words is a legibility failure, not a stylistic one.",
+        "section": "typography"
+      },
+      {
+        "name": "The Open Pairing Rule",
+        "body": "This pairing is provisional. Self-hosted retro faces have not been evaluated, and the pairing may be replaced — but only by another retro/pixel pairing, never by a neutral grotesque.",
+        "section": "typography"
+      },
+      {
+        "name": "The Grouping Rule",
+        "body": "Space communicates relationship. Elements that belong together are closer to each other than to anything else, and no gap inside a group may exceed the gap around it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Field Rule",
+        "body": "Nothing floats. Separation comes from tone and border, never from blur.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Curve Rule",
+        "body": "A radius above 0px anywhere is a defect. The Game Boy could not draw one.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep yellow scarce. It marks the prompt, the cursor, the primary action, and the terminal's border. Nothing else.",
+      "Do render decoder uncertainty as visible notation. [x,y] and {x,y} are the product's most distinctive output.",
+      "Do let colour carry meaning on its own where that is the stronger design. No blanket rule applies in either direction here; decide case by case. A control that needs a tooltip to explain itself has failed visually.",
+      "Do use space to group. Related elements sit closer together than unrelated ones.",
+      "Do keep every surface bordered and flat.",
+      "Do treat treatments as reversible experiments."
+    ],
+    "donts": [
+      "Don't add soft, blurred or ambient shadows. (A hard pixel-offset block is a separate, permitted experiment.)",
+      "Don't introduce any corner radius above 0px.",
+      "Don't add Geist, Inter, Instrument Serif, JetBrains Mono, or any neutral grotesque. Retro faces only.",
+      "Don't put the three macOS traffic-light dots on the terminal chrome.",
+      "Don't place the kicker above the wordmark; it sits below.",
+      "Don't reuse a decoder signal colour for anything that is not a decoder state.",
+      "Don't set body copy in Press Start 2P.",
+      "Don't ship #e0674f, #b03a2e, or #9bbc8a-on-#265626 at their current contrast; all three fail AA where they are used."
+    ]
+  }
+}
