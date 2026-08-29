@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { CliHero } from "@/components/cli-hero"
 import { PokemonToken } from "@/components/pokemon-token"
 import { Button } from "@/components/ui/button"
 import { splitMarkers } from "@/lib/markers"
@@ -79,12 +80,13 @@ export default function Page() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-3xl flex-col gap-6 p-6">
+    <>
+      <CliHero />
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-16 pt-6">
       <header>
-        <h1 className="font-pixel text-2xl leading-tight text-primary">PokeCipher</h1>
+        <h2 className="font-pixel text-lg leading-tight text-foreground">Encode &amp; Decode</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Turn text into Pokemon names, and Pokemon names back into text. Each repeated
-          character cycles through the Kanto, Johto and Hoenn dexes.
+          Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
         </p>
       </header>
 
@@ -175,6 +177,7 @@ export default function Page() {
           ) : null}
         </section>
       ) : null}
-    </main>
+      </main>
+    </>
   )
 }

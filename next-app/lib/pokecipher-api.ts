@@ -27,7 +27,9 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<string
   try {
     payload = await response.json()
   } catch {
-    throw new PokeCipherError("The server returned a malformed response.")
+    throw new PokeCipherError(
+      `Could not reach the cipher service (HTTP ${response.status}). Is the API running?`,
+    )
   }
 
   if (!response.ok) {

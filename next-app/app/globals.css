@@ -23,6 +23,9 @@
   --input: #1d4d24;
   --ring: #8bac0f;
 
+  /* Accent: the one warm colour in an otherwise green terminal. */
+  --poke-yellow: #ffd100;
+
   /* Decoder marker colours: ambiguity, state mismatch, unknown token. */
   --marker-ambiguous: #e8b93b;
   --marker-mismatch: #e0674f;
@@ -49,14 +52,16 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-poke-yellow: var(--poke-yellow);
 
   --color-marker-ambiguous: var(--marker-ambiguous);
   --color-marker-mismatch: var(--marker-mismatch);
   --color-marker-unknown: var(--marker-unknown);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-terminal);
+  --font-mono: var(--font-terminal);
   --font-pixel: var(--font-pixel);
+  --font-terminal: var(--font-terminal);
 
   /* No rounded corners anywhere in this design. */
   --radius: 0px;
@@ -70,5 +75,21 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+  }
+}
+
+/* Hard-edged block cursor for the CLI hero. */
+@utility animate-blink {
+  animation: poke-blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes poke-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
   }
 }

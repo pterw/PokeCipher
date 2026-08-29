@@ -76,9 +76,11 @@ describe("error handling", () => {
     await expect(encodeText("x")).rejects.toThrow("Request failed with status 413.")
   })
 
-  it("reports a malformed response body", async () => {
+  it("reports a non-JSON response as an unreachable service", async () => {
     fetchMock.mockResolvedValue(responseWithoutJson(500))
-    await expect(encodeText("x")).rejects.toThrow("The server returned a malformed response.")
+    await expect(encodeText("x")).rejects.toThrow(
+      "Could not reach the cipher service (HTTP 500). Is the API running?",
+    )
   })
 
   it("reports a response whose result is not a string", async () => {
