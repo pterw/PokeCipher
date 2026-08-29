@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url"
+
 import type { NextConfig } from "next"
 
 // Where the Python cipher API lives.
@@ -24,6 +26,19 @@ const LOCAL_API_ORIGIN = "http://localhost:8000"
 const ON_VERCEL = Boolean(process.env.VERCEL)
 
 const nextConfig: NextConfig = {
+  // Pin the workspace root to this app. A stray package-lock.json in the user's
+  // home directory otherwise makes Next infer C:\Users\<user> as the root, so
+  // the dev file watcher walks the entire home folder and HMR turns slow and
+  // unreliable.
+  turbopack: {
+    root: fileURLToPath(new URL(".", import.meta.url)),
+  },
+
+  // Next treats 127.0.0.1 and localhost as different origins and blocks the HMR
+  // socket for the one it was not started on. Without this, browsing the app on
+  // 127.0.0.1 leaves HMR dead and the dev client falls back to full reloads.
+  allowedDevOrigins: ["127.0.0.1"],
+
   images: {
     remotePatterns: [
       {
