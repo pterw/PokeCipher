@@ -1,5 +1,6 @@
+"""Vercel Python serverless function: ``POST {"text": "..."} -> {"result": "<ciphertext>"}``."""
+
 from api_support import make_handler
 from pokecipher import encode_message
 
-  class handler(make_handler(encode_message)):
-    pass
+handler = make_handler(encode_message)
