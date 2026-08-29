@@ -1,0 +1,43 @@
+# Normalise line endings on checkin so the repository always stores LF.
+
+# Web sources: Prettier and ESLint expect LF, and .prettierrc sets
+# endOfLine: "lf". Without this, a checkout on Windows (core.autocrlf=true)
+# turns every file into CRLF and `prettier --check` fails on files nobody
+# edited.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+
+# Python and config sources: LF.
+*.py text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.txt text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Shell scripts must stay LF or they break on Unix.
+*.sh text eol=lf
+
+# Windows scripts genuinely need CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binaries: never transform.
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary

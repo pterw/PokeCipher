@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/* Retro Game Boy palette: dark greens, off-white text, hard edges, pixel type.
+   Defined once on :root so the look is identical in both colour schemes. */
+:root {
+  --background: #0f380f;
+  --foreground: #d7f5c4;
+  --card: #14421a;
+  --card-foreground: #d7f5c4;
+  --popover: #14421a;
+  --popover-foreground: #d7f5c4;
+  --primary: #8bac0f;
+  --primary-foreground: #0f380f;
+  --secondary: #265626;
+  --secondary-foreground: #d7f5c4;
+  --muted: #1d4d24;
+  --muted-foreground: #9bbc8a;
+  --accent: #2c5c2c;
+  --accent-foreground: #d7f5c4;
+  --destructive: #b03a2e;
+  --destructive-foreground: #f5e6d7;
+  --border: #2c5c2c;
+  --input: #1d4d24;
+  --ring: #8bac0f;
+
+  /* Accent: the one warm colour in an otherwise green terminal. */
+  --poke-yellow: #ffd100;
+
+  /* Decoder marker colours: ambiguity, state mismatch, unknown token. */
+  --marker-ambiguous: #e8b93b;
+  --marker-mismatch: #e0674f;
+  --marker-unknown: #7fb3d5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-poke-yellow: var(--poke-yellow);
+
+  --color-marker-ambiguous: var(--marker-ambiguous);
+  --color-marker-mismatch: var(--marker-mismatch);
+  --color-marker-unknown: var(--marker-unknown);
+
+  --font-sans: var(--font-terminal);
+  --font-mono: var(--font-terminal);
+  --font-pixel: var(--font-pixel);
+  --font-terminal: var(--font-terminal);
+
+  /* No rounded corners anywhere in this design. */
+  --radius: 0px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/* Hard-edged block cursor for the CLI hero. */
+@utility animate-blink {
+  animation: poke-blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes poke-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}

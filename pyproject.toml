@@ -1,0 +1,43 @@
+# Tool configuration only. The cipher ships as plain source to Vercel's Python
+# runtime, so there is no [project]/[build-system] table: nothing is packaged
+# or installed, it is uploaded and imported as-is.
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["."]
+extend-exclude = ["next-app", "shadcn-test", "node_modules", ".venv", "venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*", "Layer*"]
+# next-app/shadcn-test are Node projects; shadcn-test is not even a valid
+# Python identifier, so recursion into it must be prevented explicitly.
+norecursedirs = [
+    "*.egg",
+    ".git",
+    ".venv",
+    "api",
+    "next-app",
+    "node_modules",
+    "shadcn-test",
+    "venv",
+]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["pokecipher", "cipher"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

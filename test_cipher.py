@@ -1,10 +1,11 @@
 import unittest
+
 # Make sure cipher.py has the final code with corrected lists and the
 # 'decode_message' function (aliased as 'decode_flexible_error_reporting').
-from cipher import encode_message, decode_message, decode_flexible_error_reporting
+from cipher import decode_flexible_error_reporting, decode_message, encode_message
+
 
 class TestPokemonCipher(unittest.TestCase):
-
     # --- Encoding Tests ---
 
     def test_encode_empty_string(self):
@@ -110,5 +111,5 @@ class TestPokemonCipher(unittest.TestCase):
 
 
 # Running the tests from the command line: python -m unittest test_cipher.py
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=2)
