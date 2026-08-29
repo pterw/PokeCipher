@@ -2,17 +2,26 @@ import type { NextConfig } from "next"
 
 // Where the Python cipher API lives.
 //
-// Empty means "same origin": in production the Python functions are served
-// from /api/* by the platform itself, so no rewrite is needed. Local dev has
-// no same-origin backend — the API is a separate stdlib server on port 8000
-// (`python api_server.py`) — so dev falls back to that.
+// Three cases, in priority order:
 //
-// Note this must not use `??`: NEXT_PUBLIC_API_URL is set-but-empty in
-// .env.local, and an empty string is not nullish. Reading it with `??` yields
-// "" and the rewrite destination collapses to `/api/:path*`, which points at
-// Next itself and 404s every request.
+//  1. NEXT_PUBLIC_API_URL set    -> proxy /api/* there (split deployment).
+//  2. Unset, running on Vercel   -> no rewrite. The platform serves the
+//                                   Python functions from /api/* same-origin,
+//                                   so rewriting would point them at us.
+//  3. Unset, running locally     -> proxy to the stdlib server on port 8000
+//                                   (`python api_server.py`). This covers both
+//                                   `next dev` and `next start`, which
+//                                   api_server.py documents as supported.
+//
+// Read the variable with `||`, not `??`: .env.local ships it set-but-empty,
+// and an empty string is not nullish, so `??` yields "" and the destination
+// collapses to `/api/:path*` — pointing Next at itself and 404ing every call.
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")
-const DEV_API_ORIGIN = "http://localhost:8000"
+const LOCAL_API_ORIGIN = "http://localhost:8000"
+
+// Vercel sets VERCEL=1 in both build and runtime environments. NODE_ENV cannot
+// stand in for it: `next start` is production but still wants the local proxy.
+const ON_VERCEL = Boolean(process.env.VERCEL)
 
 const nextConfig: NextConfig = {
   images: {
@@ -25,8 +34,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const origin = API_ORIGIN || (process.env.NODE_ENV === "development" ? DEV_API_ORIGIN : "")
-    // Same-origin: let /api/* fall through to the platform's Python functions.
+    const origin = API_ORIGIN || (ON_VERCEL ? "" : LOCAL_API_ORIGIN)
     if (!origin) return []
     return [
       {
