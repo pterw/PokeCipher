@@ -44,6 +44,7 @@ def send_json(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> No
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Access-Control-Allow-Origin", "*")
     handler.end_headers()
     if status != 204:
         handler.wfile.write(body)
@@ -74,6 +75,9 @@ def make_handler(transform: Callable[[str], str]) -> type[BaseHTTPRequestHandler
         def do_OPTIONS(self) -> None:
             self.send_response(204)
             self.send_header("Content-Length", "0")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
 
         def log_message(self, format: str, *args: object) -> None:

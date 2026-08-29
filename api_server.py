@@ -13,20 +13,27 @@ from __future__ import annotations
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from api_support import make_handler
+from api_support import MAX_TEXT_CHARS, read_json_body, send_json
 from pokecipher import decode_message, encode_message
-
-EncodeHandler = make_handler(encode_message)
-DecodeHandler = make_handler(decode_message)
 
 
 class DevRouter(BaseHTTPRequestHandler):
-    """Dispatch /api/encode and /api/decode to their Vercel handlers."""
+    """Route /api/encode and /api/decode through the same checks as Vercel."""
 
     def do_POST(self) -> None:
-        handler_cls = DecodeHandler if self.path.startswith("/api/decode") else EncodeHandler
-        handler = handler_cls(self.request, self.client_address, self.server)
-        handler.do_POST()
+        payload = read_json_body(self)
+        if payload is None:
+            send_json(self, 400, {"error": "Expected a JSON object body under 32 KiB."})
+            return
+        text = payload.get("text")
+        if not isinstance(text, str):
+            send_json(self, 400, {"error": "Field 'text' must be a string."})
+            return
+        if len(text) > MAX_TEXT_CHARS:
+            send_json(self, 413, {"error": f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."})
+            return
+        transform = decode_message if self.path.startswith("/api/decode") else encode_message
+        send_json(self, 200, {"result": transform(text)})
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
