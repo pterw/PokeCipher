@@ -50,8 +50,9 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
     return (
       <span
         className={cn(
-          "inline-block border border-border bg-secondary/60 px-1.5 py-0.5 font-mono text-xs leading-relaxed"
+          "inline-block border border-border bg-card px-2 py-0.5 font-mono text-sm leading-relaxed text-foreground transition-colors hover:border-poke-yellow"
         )}
+        title={name}
       >
         {name}
       </span>
@@ -60,7 +61,7 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
 
   return (
     <span
-      className="box-content inline-flex h-8 w-8 items-center justify-center border border-border bg-secondary/60 align-middle"
+      className="inline-flex h-8 w-8 items-center justify-center align-middle"
       title={name}
     >
       {/* A plain <img>, not next/image. The Image here always carried

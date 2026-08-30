@@ -111,3 +111,61 @@
     opacity: 0;
   }
 }
+
+/* Terminal tab: a half-trapeze whose sloped edge is a tight staircase.
+   Two 4px treads against risers, so the cut stays pixel-crisp without extending too far. */
+@utility tab-staircase {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 8px) 0,
+    calc(100% - 8px) 33.33%,
+    calc(100% - 4px) 33.33%,
+    calc(100% - 4px) 66.66%,
+    100% 66.66%,
+    100% 100%,
+    0 100%
+  );
+}
+
+/* Hero backdrop: the scene's literal horizontal bands, each its own strip that
+   scrolls the opposite way to its neighbours. One tile is 480px wide, so a
+   480px translate loops with no seam; each strip is exactly one tile tall and
+   repeats on X only, so the bands slide past each other and never overlap. */
+@keyframes poke-drift-left {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-480px, 0, 0); }
+}
+
+@keyframes poke-drift-right {
+  from { transform: translate3d(-480px, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@layer components {
+  .hero-band {
+    position: absolute;
+    left: -480px;
+    right: -480px;
+    background-repeat: repeat-x;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+
+  .hero-band-l { animation-name: poke-drift-left; }
+  .hero-band-r { animation-name: poke-drift-right; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-band-l,
+    .hero-band-r { animation: none; }
+  }
+}
+
+/* Hero copy sits over a backdrop no veil can fully tame without hiding it. The
+   same device that carries the wordmark carries this: a hard void stroke, drawn
+   behind the fill, so the letterform holds its own edge against any band. */
+@utility hero-legible {
+  -webkit-text-stroke: 0.06em var(--terminal-void);
+  paint-order: stroke fill;
+  text-shadow: 0.07em 0.07em 0 var(--terminal-void);
+}

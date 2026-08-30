@@ -1,8 +1,6 @@
 "use client"
 
-import { useState } from "react"
-
-import { PokeCipherError, decodeText, encodeText } from "@/lib/pokecipher-api"
+import { useEffect, useState } from "react"
 
 /**
  * CLI-terminal hero with an 8-bit Pokémon overworld backdrop.
@@ -16,6 +14,8 @@ import { PokeCipherError, decodeText, encodeText } from "@/lib/pokecipher-api"
 const COLS = 48
 const ROWS = 12
 const CELL = 10
+/** Enough one-tile-tall strips to cover the hero at any viewport height. */
+const BANDS = 9
 
 /** Retro 8-bit palette: sky, clouds, grass, and the two scene sprites. */
 const C = {
@@ -121,155 +121,140 @@ function buildTile(): string {
 
 const TILE = `url("data:image/svg+xml,${encodeURIComponent(buildTile())}")`
 
-type Line = { kind: "cmd" | "out" | "err" | "info"; text: string }
+function BufferCursor() {
+  const [frameIndex, setFrameIndex] = useState(0)
 
-const INITIAL_LINES: Line[] = [
-  { kind: "cmd", text: 'encode "Try below"' },
-  {
-    kind: "out",
-    text: "Persian Farfetch'd Shellder Bulbasaur Machoke Weepinbell Ponyta Slowbro Grimer",
-  },
-  { kind: "info", text: 'type a message below, or "help"' },
-]
+  // Calmer cadence: solid beats, blank beats, with occasional buffer coherence glitch
+  const FRAMES = ["█", "█", "█", "▓", "█", " ", " ", " ", "░", "█", " ", " "]
 
-const HELP_LINES: Line[] = [
-  { kind: "info", text: "encode <text>  — turn text into Pokemon names" },
-  { kind: "info", text: "decode <names> — turn Pokemon names back into text" },
-  { kind: "info", text: "help           — show this" },
-  { kind: "info", text: "clear          — reset the terminal" },
-]
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrameIndex((prev) => (prev + 1) % FRAMES.length)
+    }, 380)
+    return () => clearInterval(timer)
+  }, [FRAMES.length])
+
+  return (
+    <span className="inline-block font-terminal text-poke-yellow select-none" aria-hidden="true">
+      {FRAMES[frameIndex]}
+    </span>
+  )
+}
 
 /** CLI-terminal hero that sits above the cipher tool. */
 export function CliHero() {
-  const [lines, setLines] = useState<Line[]>(INITIAL_LINES)
-  const [input, setInput] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [focused, setFocused] = useState(false)
-
-  function append(next: Line[]) {
-    setLines((prev) => [...prev, ...next].slice(-12))
-  }
-
-  async function submit() {
-    const raw = input.trim()
-    if (!raw || busy) return
-    setInput("")
-
-    if (raw === "clear") {
-      setLines(INITIAL_LINES)
-      return
-    }
-    if (raw === "help") {
-      append([{ kind: "cmd", text: raw }, ...HELP_LINES])
-      return
-    }
-
-    const isDecode = raw.startsWith("decode ")
-    const rest =
-      raw.startsWith("encode ") || isDecode ? raw.slice(raw.indexOf(" ") + 1).trim() : raw
-    if (!rest) {
-      append([
-        { kind: "cmd", text: raw },
-        { kind: "err", text: "usage: encode <text> | decode <names>" },
-      ])
-      return
-    }
-
-    setBusy(true)
-    append([{ kind: "cmd", text: raw }])
-    try {
-      const output = isDecode ? await decodeText(rest) : await encodeText(rest)
-      append([{ kind: "out", text: output }])
-    } catch (caught) {
-      append([
-        {
-          kind: "err",
-          text:
-            caught instanceof PokeCipherError
-              ? caught.message
-              : "Could not reach the cipher service.",
-        },
-      ])
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <section className="relative overflow-hidden">
+      {/* Backdrop: the scene's own horizontal bands, alternating direction. Each
+          strip is exactly one tile tall and repeats on X only, so neighbouring
+          bands slide past each other rather than overlapping. */}
+      <div aria-hidden className="absolute inset-0 overflow-hidden">
+        {Array.from({ length: BANDS }, (_, band) => (
+          <div
+            key={band}
+            className={`hero-band ${band % 2 === 0 ? "hero-band-l" : "hero-band-r"}`}
+            style={{
+              top: `${band * ROWS * CELL}px`,
+              height: `${ROWS * CELL}px`,
+              backgroundImage: TILE,
+              backgroundSize: `${COLS * CELL}px ${ROWS * CELL}px`,
+              animationDuration: `${70 + band * 14}s`,
+              imageRendering: "pixelated",
+            }}
+          />
+        ))}
+      </div>
+      {/* The veil stays clear and only gently grounds into solid background at the bottom */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
-          backgroundImage: TILE,
-          backgroundSize: `${COLS * CELL}px ${ROWS * CELL}px`,
-          imageRendering: "pixelated",
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-linear-to-b from-background/10 via-background/35 to-background"
+            background:
+              "linear-gradient(to bottom, "+
+              "rgba(15,56,15,0) 0%, rgba(15,56,15,0) 50%, rgba(15,56,15,0.08) 70%, rgba(15,56,15,0.25) 85%, rgba(15,56,15,0.65) 95%, #0f380f 100%)",
+          }}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-4xl px-6 pt-10 pb-10 sm:pt-12 sm:pb-12">
+      <div className="relative z-10 mx-auto w-full max-w-4xl px-6 pt-3 pb-2 sm:pt-4 sm:pb-3">
         <div>
-          <h1 className="wordmark font-pixel text-[clamp(1.4rem,4vw,2.5rem)] leading-none">
+          <h1 className="wordmark font-pixel text-[clamp(1.6rem,8vw,4.5rem)] leading-none select-none">
             <span className="text-poke-yellow">Poké</span>
-            <span className="text-foreground">Cipher</span>
+            <span className="text-white">Cipher</span>
           </h1>
-          <p className="mt-2 font-terminal text-xl text-foreground sm:text-2xl">
+          <p className="hero-legible font-terminal text-xl text-poke-yellow sm:text-2xl">
             $ encrypt.txt --help
           </p>
         </div>
-        <p className="mt-3 max-w-[80ch] font-terminal text-lg leading-snug text-foreground sm:text-xl">
+        <p className="hero-legible mt-1 max-w-[80ch] font-terminal text-xl leading-snug text-white sm:text-2xl">
           Turn text into Pokemon names — and Pokemon names back into text.
         </p>
 
-        <div className="mt-6 border border-border bg-terminal-void">
-          <div className="border-b border-border bg-secondary px-4 py-3 font-terminal text-sm text-foreground">
-            bash
+        <div className="mt-2.5 sm:mt-3 border border-border bg-terminal-void shadow-[8px_8px_0px_#000000]">
+          {/* Chrome: cmd.exe style titlebar with stepped tab linked to the body */}
+          <div className="relative flex items-end border-b border-border bg-secondary pt-1 font-terminal text-sm sm:text-base">
+            <span className="tab-staircase relative z-10 -mb-[1px] ml-2 flex h-[calc(1.625rem+1px)] w-[9rem] items-center bg-terminal-void px-2.5 text-left text-foreground">
+              <span className="text-poke-yellow">$&nbsp;</span>
+              POKEDEX.EXE
+            </span>
           </div>
-          <div className="min-h-[22rem] space-y-0.5 p-4 font-terminal text-lg text-foreground sm:text-xl">
-          {lines.map((line, index) => (
-            <p
-              key={index}
-              className={
-                line.kind === "out"
-                  ? "text-primary"
-                  : line.kind === "err"
-                    ? "text-destructive"
-                    : line.kind === "info"
-                      ? "text-muted-foreground"
-                      : "text-foreground"
-              }
-            >
-              {line.kind === "cmd" ? <span className="text-poke-yellow">$ </span> : null}
-              {line.text}
+          <div className="flex flex-col gap-1.5 p-3.5 font-terminal text-lg leading-normal text-foreground sm:p-4 sm:text-xl [scrollbar-width:none]">
+            <p>
+              <span className="text-poke-yellow">$ </span>
+              <span className="text-foreground">help --cipher</span>
             </p>
-          ))}
-          <form
-            className="flex items-center gap-2"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void submit()
-            }}
-          >
-            <span className="text-poke-yellow">$</span>
-            {input === "" && !busy && !focused ? (
-              <span className="h-5 w-3 shrink-0 animate-blink bg-poke-yellow" aria-hidden />
-            ) : null}
-            <input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              disabled={busy}
-              spellCheck={false}
-              autoComplete="off"
-              aria-label="Terminal input"
-              className="min-w-0 flex-1 bg-transparent font-terminal text-lg text-foreground focus:outline-none sm:text-xl"
-            />
-          </form>
+
+            <p className="text-foreground">
+              PokéCipher maps printable ASCII (32–126) to Pokémon
+              <br />
+              from the Kanto, Johto, and Hoenn regional Pokédexes.
+            </p>
+
+            <div className="my-1 flex flex-col font-mono text-base text-primary sm:text-lg">
+              <p>index &nbsp;= ord(char) - 32</p>
+              <p>
+                region = occurrence % 3 &nbsp; &nbsp;[
+                <span className="font-semibold text-destructive">Kanto → Johto → Hoenn</span>
+                ]
+              </p>
+              <p>token &nbsp;= POKEDEX[region][index]</p>
+            </div>
+
+            <p className="text-foreground">
+              Each repeated character advances to the next region.
+            </p>
+
+            <div className="font-terminal text-lg sm:text-xl">
+              <div className="flex flex-wrap items-start gap-x-2">
+                <span>&quot;Hello&quot;</span>
+                <span className="font-bold text-destructive">→</span>
+                <span className="text-primary">Zubat</span>
+                <span className="text-primary">Weepinbell</span>
+                <div className="inline-flex flex-col items-center">
+                  <span className="text-primary">Ponyta</span>
+                  <span className="font-bold text-destructive text-sm sm:text-base whitespace-nowrap">
+                    ↑ Kanto &apos;l&apos;
+                  </span>
+                </div>
+                <div className="inline-flex flex-col items-center">
+                  <span className="text-primary">Gyarados</span>
+                  <span className="font-bold text-destructive text-sm sm:text-base whitespace-nowrap">
+                    ↑ Johto &apos;l&apos;
+                  </span>
+                </div>
+                <span className="text-primary">Slowbro</span>
+              </div>
+            </div>
+
+            <p className="text-foreground">
+              Names can repeat across regional Pokédexes, so decoding
+              <br />
+              may produce <span className="font-semibold text-marker-ambiguous">[x,y]</span> - multiple characters remain valid.
+            </p>
+
+            <p className="flex items-center gap-1.5 pt-1 text-lg sm:text-xl">
+              <span className="text-poke-yellow font-bold">$</span>
+              <BufferCursor />
+            </p>
           </div>
         </div>
       </div>
