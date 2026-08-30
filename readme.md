@@ -55,7 +55,7 @@ Full-stack, with Python as the single source of truth for the cipher:
 
 ```
 pokecipher/   Cipher core, one concern per module.
-app.py        FastAPI app: POST /api/encode, POST /api/decode.
+app.py        FastAPI app: /api/encode, /api/decode, /api/names.
 next-app/     Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
 cipher.py     Backwards-compatible re-export shim.
 ```
@@ -63,8 +63,11 @@ cipher.py     Backwards-compatible re-export shim.
 The frontend never re-implements the cipher. It calls the Python functions, so
 the algorithm and the Pokédex data exist in exactly one place.
 
-Pokémon output toggles between sprites and names. Sprites are served from the
-PokémonDB CDN keyed by name, falling back to the name when a slug is unknown.
+Pokémon output toggles between sprites and names. Sprites come from the
+PokémonDB CDN, from the Generation 3 `ruby-sapphire` set — GBA-era pixel art,
+matching both the palette and the Kanto/Johto/Hoenn roster. They are 64×64 and
+drawn at 32px, an exact 2:1 downscale, so `image-rendering: pixelated` stays
+faithful. A name whose slug the CDN does not know falls back to the name.
 
 ## Running it locally
 
@@ -103,19 +106,33 @@ inherits the API's `fastapi` preset and fails.
 
 Both deploy on push to `main`; every pull request gets a preview URL. Copy
 `next-app/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the API
-project's URL (for example `https://poke-cipher-pterws-projects.vercel.app`).
-Left empty, the frontend calls `/api/*` on its own origin.
+project's URL — `https://poke-cipher-api.vercel.app`. Left empty, the frontend
+calls `/api/*` on its own origin, which in local development the Next rewrite
+proxies to `http://localhost:8000`.
 
 ## API
 
-Both endpoints take `POST {"text": "..."}` and return `{"result": "..."}`.
-Input is capped at 4,000 characters, because decode time grows quadratically
-with message length.
+`POST /api/encode` and `POST /api/decode` both take `{"text": "..."}` and return
+`{"result": "..."}`. Failures return `{"error": "..."}` with a 400 or 413. Input
+is capped at 4,000 characters, because decode time grows quadratically with
+message length.
 
 ```bash
-curl -X POST https://<api>/api/encode -d '{"text":"Hello"}'
+curl -X POST https://poke-cipher-api.vercel.app/api/encode -d '{"text":"Hello"}'
 # {"result":"Zubat Weepinbell Ponyta Gyarados Slowbro"}
 ```
+
+Decoding ignores case, so ciphertext that has been through a URL or a chat client
+still works:
+
+```bash
+curl -X POST https://poke-cipher-api.vercel.app/api/decode   -d '{"text":"zubat weepinbell ponyta gyarados slowbro"}'
+# {"result":"Hello"}
+```
+
+`GET /api/names` returns the 210 names the decoder accepts, sorted, cached for an
+hour. The frontend uses it to tell ciphertext from plaintext before offering to
+decode.
 
 ## Known limitations
 

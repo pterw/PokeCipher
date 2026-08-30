@@ -36,6 +36,16 @@ into security-adjacent language.
 A dedicated **"What is a cipher?"** area is required, not optional. Being a toy
 and teaching the principles it uses are the same goal here, not competing ones.
 
+**The hero terminal is the surface for this.** Decided 2026-08-30 by the user:
+"Terminal is plenty of hero space to explain in pseudo code on how to use the
+app." The terminal carries the *abstraction* — pseudocode for what a cipher is
+and how to drive the app — which suits the Field Terminal world, where the
+machine explains itself in its own transcript rather than in marketing prose.
+
+A **second, quieter surface** is still needed for this cipher's specific mapping
+(the `ord(char) - 32` index, the `N % 3` region cycle, why ambiguity appears).
+Pseudocode in the terminal and the concrete mapping are two different jobs.
+
 The explainer must cover what the product currently assumes visitors already
 know and they do not: that there are only **three** Pokédex regions in play, and
 that this number is what governs how often ambiguity appears.
@@ -95,10 +105,26 @@ feedback and does not handle a rejected clipboard permission.
 - Python is the single source of truth for the cipher. The frontend never
   re-implements it; it calls `POST /api/encode` and `POST /api/decode`, which
   take `{"text": "..."}` and return `{"result": "..."}`.
+- `GET /api/names` serves the 210 indexed Pokémon names (~2 KB, cached an hour)
+  so the frontend can tell ciphertext from plaintext without copying the dex
+  into TypeScript. Adding a region reaches the UI with no frontend edit.
+- Decoding is **case-insensitive**. Ciphertext routed through a URL, a chat
+  client or a spreadsheet arrives lowercased, and the old failure was silent:
+  every token became `<?unknown: ...>` with nothing indicating case was why.
+  Folding is safe and asserted — no two of the 210 names collide when folded.
 - Sprites come from the PokémonDB CDN keyed by name, falling back to the name
-  when a slug is unknown. All 210 names in use currently resolve.
-- Deployed on Vercel as two projects from one repository, because Vercel cannot
-  host a Next.js app and Python serverless functions in a single project.
+  when a slug is unknown. The set is `ruby-sapphire` — Generation 3, GBA, the
+  same hardware whose palette the design system emulates, and whose roster is
+  exactly Kanto + Johto + Hoenn. All 210 names resolve there, at ~626 bytes
+  each. The sprites are 64×64, so a 32px cell is an exact 2:1 downscale, which
+  is what makes `image-rendering: pixelated` faithful rather than destructive.
+- Deployed on Vercel as two projects from one repository. A single project
+  cannot serve both, because a detected framework preset takes over all routing
+  — Vercel's [Services](https://vercel.com/docs/services) is the sanctioned way
+  to combine them if that is ever revisited. The `/api/*.py` file-based Python
+  path is **not** available: Vercel now grants it only to projects created
+  before it was retired, so a new project fails in `vercel build` before
+  dependencies install.
 
 ### Terminology (durable; do not rename)
 
@@ -193,7 +219,9 @@ Real, verified, and safe to use:
 - Retroactive-resolution example: `Nidoking Geodude Shroomish Nidoking` decodes
   cleanly to `AAAA`, though `Geodude` alone is ambiguous.
 - `Screenshot.png` and `Screenshot_1.png` at the repository root.
-- Test suite: 153 Python tests, 97% coverage; 31 frontend tests.
+- Test suite: 178 Python tests (250 subtests), 97% statement coverage; 46
+  frontend tests. Measured 2026-08-30; these counts drift silently, since
+  nothing verifies them against the suite.
 
 No testimonials, users, customers, benchmarks, press, pricing or adoption
 figures exist. Future work must not fabricate any.
@@ -237,7 +265,7 @@ Confirmed contrast defects, measured against the incumbent tokens:
 
 | Usage | Colors | Ratio | Status |
 |---|---|---|---|
-| `bash` chrome label on hero | `#9bbc8a` on `#265626` | **4.08:1** | fails AA body text |
+| `bash` chrome label on hero | `#d7f5c4` on `#265626` | **7.27:1** | fixed 2026-08-29, was 4.08:1 |
 | Terminal `err` lines | `#b03a2e` on `#071a07` | **3.01:1** | fails |
 | Error panel text | `#e0674f` on `#0f380f` | **3.91:1** | fails |
 | `marker-mismatch` on card | `#e0674f` on `#14421a` | **3.41:1** | fails |
@@ -257,5 +285,15 @@ places. Decide it case by case on the merits; do not apply
 "never convey meaning by colour alone" as a blanket rule, and do not add
 explanatory tooltips to compensate for a mark that should have been legible.
 
-Known gap: the interface has **no live regions**. Results, errors and terminal
-output all appear dynamically and none of it is announced to screen readers.
+Live regions: the tool below the hero now announces its dynamic output — the
+result panel and the decode-gate status are `aria-live="polite"`, and the error
+panel is `role="alert"`. **The hero terminal is still silent**: its transcript
+appends command, output and error lines with nothing announced, which is the
+larger of the two surfaces for a screen-reader user.
+
+The decode control is gated rather than error-handled. It is shaded and
+`aria-disabled` until the first whitespace-delimited token of the input is a
+known Pokémon name, with a persistent status line saying why. `aria-disabled`
+rather than `disabled` deliberately, so the control keeps its place in the tab
+order and stays announced instead of vanishing. Encoding is never gated: any
+text is encodable, and the asymmetry is the point.

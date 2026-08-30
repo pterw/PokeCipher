@@ -20,9 +20,9 @@ colors:
 typography:
   display:
     fontFamily: "Press Start 2P, ui-monospace, monospace"
-    fontSize: "clamp(1.875rem, 5vw, 2.25rem)"
+    fontSize: "clamp(1.4rem, 4vw, 2.5rem)"
     fontWeight: 400
-    lineHeight: 1.25
+    lineHeight: 1
   headline:
     fontFamily: "Press Start 2P, ui-monospace, monospace"
     fontSize: "1.125rem"
@@ -190,8 +190,10 @@ tall, narrow, cathode-tube feel that suits a transcript.
 
 ### Hierarchy
 
-- **Display** (Press Start 2P, `clamp(1.875rem, 5vw, 2.25rem)`, 1.25): the
-  wordmark only.
+- **Display** (Press Start 2P, `clamp(1.4rem, 4vw, 2.5rem)`, `leading-none`):
+  the wordmark only. **The user has asked for this to "size way up"** — the hard
+  pixel-offset shadow was accepted specifically because it survives the backdrop
+  where colour does not, and it needs scale to read. Currently tops out at 40px.
 - **Headline** (Press Start 2P, 1.125rem, 1.25): section headings.
 - **Body** (VT323, `clamp(1.125rem, 2vw, 1.25rem)`, 1.375): hero copy, terminal
   transcript, results.
@@ -288,16 +290,33 @@ a dependency that hides it.
 The defining component. A bordered rectangle with a chrome bar above a
 transcript body.
 
-- **Chrome bar:** LCD Moss (`#265626`) ground, LCD Sage (`#9bbc8a`) label text,
-  bottom border. Carries the literal word `bash`. **Currently fails contrast at
-  4.08:1.**
+- **Chrome bar:** LCD Moss (`#265626`) ground, LCD Wash (`#d7f5c4`) label text,
+  bottom border, `16px / 12px` padding. Carries the literal word `bash`. Now
+  **7.27:1**; it was LCD Sage at 4.08:1 and failed AA until 2026-08-29.
 - **Body:** Terminal Void (`#071a07`), VT323, line-per-entry transcript.
 - **Line kinds:** command (LCD Wash, prefixed with a yellow `$`), output (LCD
   Olive), error (Alert Rust — **fails at 3.01:1**), info (LCD Sage).
 - **Cursor:** a solid `12 × 20px` cartridge-yellow block, blinking on a `1.1s`
   hard-step cycle with no fade.
-- **Required:** the panel must carry a thin cartridge-yellow border so it stands
-  off the ground. Not yet implemented.
+- **REQUIRED AND STILL NOT DONE:** the panel must carry a thin cartridge-yellow
+  border so it stands off the backdrop. It currently uses the generic
+  `--border` green (`#2c5c2c`) at `cli-hero.tsx`, which is the one thing that
+  makes the terminal read as another panel rather than the page's centrepiece.
+  Asked for explicitly, recorded twice, and outstanding across several sessions.
+  This is the highest-priority unimplemented brand commitment.
+- **Role, decided 2026-08-30:** the terminal is where the app explains itself in
+  **pseudocode** — what a cipher is, and how to drive this one. The user:
+  "Terminal is plenty of hero space to explain in pseudo code on how to use the
+  app." This suits the world: the machine documents itself in its own transcript.
+  It also gives the transcript a job beyond being a second, redundant client.
+- **Opacity:** flagged by the user as wrong alongside the border, and unresolved.
+  The hero scrim is `from-background/10 via-background/35 to-background`, so the
+  backdrop sits at 90% strength behind the wordmark — that is why no palette
+  colour survives there and why the hard pixel-offset shadow was needed at all.
+- **Open, related:** the transcript's opening line reads `encode "Try below"`,
+  which points the visitor downward while the terminal itself accepts typed
+  input. The copy and the affordance contradict each other, and which surface is
+  canonical is still undecided.
 - **Absolutely not:** three red/amber/green dots in the chrome bar. They tell the
   user nothing, clash with the palette, and fill space for its own sake.
 
@@ -310,9 +329,32 @@ transcript body.
 
 ### Token Chip (signature component)
 
+**Spec violation, unfixed:** the token chip and the sprite cell both ship
+`bg-secondary/60`, a 60% fill that lets the page ground show through. The token
+in this file specifies solid LCD Moss, and the Flat Field Rule says separation
+comes from tone and border — a translucent fill is neither tone nor border.
+
 One unit of ciphertext. Either a `32 × 32px` bordered cell holding a pixelated
 sprite, or — when sprites are off or the sprite fails — the Pokémon name in a
 bordered LCD Moss chip. The fallback is a first-class state, not an error.
+
+The cell is `box-content`, so its `1px` border sits outside the 32px content box
+rather than eating into it. That is load-bearing, not cosmetic: sprites are
+64×64, and only an exact 32px draw keeps the downscale at an integral 2:1 where
+`image-rendering: pixelated` maps each output pixel to one 2×2 source block.
+Before this the border reduced the draw to 30px, making it a non-integral 3.2:1.
+
+### Decode Gate
+
+The decode control is shaded to `opacity-40` and `aria-disabled` until the first
+whitespace-delimited token of the input is a known Pokémon name, paired with a
+persistent status line — not a hover tooltip — stating why. Live rather than
+staged: `Zub` keeps it shut, `Zubat` opens it, `Zubatx` closes it again.
+
+`aria-disabled` rather than `disabled`, so the control keeps its tab position and
+stays announced. Encoding is never gated. The vocabulary comes from
+`GET /api/names`, fetched once per mount, so the dex stays the single source of
+truth.
 
 ## Do's and Don'ts
 

@@ -63,8 +63,9 @@ local_build.txt
 .agent/
 
 # --- Local working files, never committed ---
-# Handoff notes for AI agent sessions. Lives on disk, but must not reach main.
+# Handoff notes for AI agent sessions. Live on disk, but must not reach main.
 BOOTSTRAP.md
+HANDOFF.md
 # Stray Turborepo scaffold from an early "shadcn in a monorepo" experiment that
 # predates next-app/. It carries its own .git, so without this it stages as a
 # gitlink. Safe to delete from disk; next-app/ is the real frontend.

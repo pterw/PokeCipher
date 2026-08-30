@@ -53,8 +53,10 @@ pokecipher/      Cipher core. One concern per module.
   encoder.py     Plaintext → Pokémon names.
   decoder.py     Pokémon names → plaintext (fork/merge branch engine).
 cipher.py        Backwards-compatible re-export shim. Do not add logic here.
-app.py           FastAPI app: POST /api/encode, POST /api/decode. The only
-                 HTTP surface; Vercel finds it by filename.
+app.py           FastAPI app: POST /api/encode, POST /api/decode, and
+                 GET /api/names (the decoder's vocabulary, for the frontend's
+                 decode gate). The only HTTP surface; Vercel finds it by
+                 filename.
 next-app/        Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
   lib/pokecipher-api.ts  The only place the frontend talks to Python.
   lib/markers.ts         Parses [x,y] / {x,y} / <?...> for colour-coding.
@@ -86,6 +88,37 @@ way to combine them if that is ever worth revisiting.)
    `framework: "fastapi"` and fails with `FASTAPI_ENTRYPOINT_NOT_FOUND`.
 
 Both deploy on push to `main`. Every pull request gets a preview URL.
+
+### Domains, and a live trap
+
+| Domain | Serves | Vercel project |
+|---|---|---|
+| `poke-cipher.vercel.app` | the Next.js app | `poke-cipher` (root dir `next-app`) |
+| `poke-cipher-api.vercel.app` | the FastAPI backend | `poke-cipher-api` (root dir `.`) |
+
+The names were swapped on 2026-08-30: the good name had been on the API, and the
+app was on `next-app-blue-nine.vercel.app`. Note `next-app.vercel.app` belongs to
+**someone else** — it resolves, it is not ours, and it must never be used.
+
+**Both `.vercel.app` names are pinned deployment aliases, not project domains.**
+They do **not** follow production deploys. After every merge to `main` the alias
+must be re-pointed by hand or the domain silently serves the previous build:
+
+```bash
+npx vercel alias set <new-production-deployment-url> poke-cipher.vercel.app
+npx vercel alias set <new-production-deployment-url> poke-cipher-api.vercel.app
+```
+
+This has already caused a false "the fix didn't deploy" report. The real fix is
+in the dashboard — Settings → Domains, release the name from the project that
+still owns it and add it to the right one — because the CLI cannot: `vercel
+domains rm` answers `Domain not found`, and `vercel domains add` answers
+`alias_conflict`. Until that is done, treat re-aliasing as part of deploying.
+
+Two further facts worth not rediscovering: `vercel project resume` refuses to run
+non-interactively and must be typed by a human; and both projects report
+`live: false` yet serve production normally, so that flag is not the thing to
+chase when a domain 404s — a missing production deployment is.
 
 **Do not reintroduce an `api/` directory of `.py` files.** Vercel's file-based
 Python functions are now limited to projects created before that path was
