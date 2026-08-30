@@ -35,7 +35,7 @@ typography:
     lineHeight: 1.375
   label:
     fontFamily: "VT323, ui-monospace, monospace"
-    fontSize: "0.75rem"
+    fontSize: "0.875rem"
     fontWeight: 400
     letterSpacing: "0.05em"
 rounded:
@@ -53,25 +53,25 @@ components:
     textColor: "{colors.lcd-deep}"
     rounded: "{rounded.none}"
     padding: "0 16px"
-    height: "36px"
+    height: "40px"
   button-secondary:
     backgroundColor: "{colors.lcd-moss}"
     textColor: "{colors.lcd-wash}"
     rounded: "{rounded.none}"
     padding: "0 16px"
-    height: "36px"
+    height: "40px"
   button-outline:
     backgroundColor: "transparent"
     textColor: "{colors.lcd-wash}"
     rounded: "{rounded.none}"
     padding: "0 16px"
-    height: "36px"
+    height: "40px"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.lcd-wash}"
     rounded: "{rounded.none}"
     padding: "0 16px"
-    height: "36px"
+    height: "40px"
   terminal-panel:
     backgroundColor: "{colors.terminal-void}"
     textColor: "{colors.lcd-wash}"
@@ -195,8 +195,9 @@ tall, narrow, cathode-tube feel that suits a transcript.
 - **Headline** (Press Start 2P, 1.125rem, 1.25): section headings.
 - **Body** (VT323, `clamp(1.125rem, 2vw, 1.25rem)`, 1.375): hero copy, terminal
   transcript, results.
-- **Label** (VT323, 0.75rem, uppercase, 0.05em tracking): field labels, counters,
-  helper text.
+- **Label** (VT323, 0.875rem, uppercase, 0.05em tracking): field labels, counters,
+  helper text. Raised from 0.75rem: VT323's x-height is near half its em, so 12px
+  rendered like ~9px of a normal face and "Show sprites" was barely legible.
 
 ### Named Rules
 
@@ -272,7 +273,7 @@ a dependency that hides it.
 
 ### Buttons
 
-- **Shape:** square (`0px` radius), `1px` border, `36px` tall at default size.
+- **Shape:** square (`0px` radius), `1px` border, `40px` tall at default size.
 - **Primary:** cartridge yellow fill (`#ffd100`) with LCD Deep text (`#0f380f`),
   border matching the fill. The only yellow-filled element on the page.
 - **Secondary:** LCD Moss fill (`#265626`), LCD Wash text, LCD Border stroke.

@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { MAX_TEXT_CHARS, PokeCipherError, decodeText, encodeText, isWithinLimit } from "./pokecipher-api"
+import {
+  MAX_TEXT_CHARS,
+  PokeCipherError,
+  countKnownNames,
+  decodeText,
+  encodeText,
+  fetchKnownNames,
+  isWithinLimit,
+  looksLikeCiphertext,
+} from "./pokecipher-api"
 
 /** Build a minimal Response whose body parses as JSON. */
 function jsonResponse(body: unknown, status = 200): Response {
@@ -129,5 +138,88 @@ describe("isWithinLimit", () => {
 
   it("accepts the empty string", () => {
     expect(isWithinLimit("")).toBe(true)
+  })
+})
+
+
+const KNOWN = new Set(["zubat", "weepinbell", "ponyta", "gyarados", "slowbro", "farfetch'd"])
+
+describe("looksLikeCiphertext", () => {
+  it("is false before the name list has loaded", () => {
+    expect(looksLikeCiphertext("Zubat Weepinbell", new Set())).toBe(false)
+  })
+
+  it("accepts a single name, which is legitimate ciphertext", () => {
+    expect(looksLikeCiphertext("Zubat", KNOWN)).toBe(true)
+  })
+
+  it("rejects plain prose", () => {
+    expect(looksLikeCiphertext("The quick brown fox", KNOWN)).toBe(false)
+  })
+
+  it("opens and closes live as the first token is typed", () => {
+    expect(looksLikeCiphertext("Zub", KNOWN)).toBe(false)
+    expect(looksLikeCiphertext("Zubat", KNOWN)).toBe(true)
+    expect(looksLikeCiphertext("Zubatx", KNOWN)).toBe(false)
+  })
+
+  it("ignores case", () => {
+    expect(looksLikeCiphertext("zubat weepinbell", KNOWN)).toBe(true)
+    expect(looksLikeCiphertext("ZUBAT", KNOWN)).toBe(true)
+  })
+
+  it("tolerates surrounding and repeated whitespace", () => {
+    expect(looksLikeCiphertext("   Zubat   Weepinbell  ", KNOWN)).toBe(true)
+    expect(looksLikeCiphertext(["", "Zubat"].join(String.fromCharCode(10)), KNOWN)).toBe(
+      true
+    )
+  })
+
+  it("is false for empty or whitespace-only input", () => {
+    expect(looksLikeCiphertext("", KNOWN)).toBe(false)
+    expect(looksLikeCiphertext("   ", KNOWN)).toBe(false)
+  })
+
+  it("judges only the first token, so leading prose closes the gate", () => {
+    expect(looksLikeCiphertext("Hello Zubat", KNOWN)).toBe(false)
+  })
+
+  it("handles a name carrying an apostrophe", () => {
+    expect(looksLikeCiphertext("Farfetch'd Zubat", KNOWN)).toBe(true)
+  })
+})
+
+describe("countKnownNames", () => {
+  it("counts only recognised tokens", () => {
+    expect(countKnownNames("Zubat Weepinbell banana", KNOWN)).toBe(2)
+  })
+
+  it("is zero before the list loads", () => {
+    expect(countKnownNames("Zubat", new Set())).toBe(0)
+  })
+
+  it("ignores case and extra whitespace", () => {
+    expect(countKnownNames("  zubat   PONYTA  ", KNOWN)).toBe(2)
+  })
+})
+
+describe("fetchKnownNames", () => {
+  it("lowercases the served names into a set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ names: ["Zubat", "Ponyta"] }))
+    vi.stubGlobal("fetch", fetchMock)
+    const names = await fetchKnownNames()
+    expect(names.has("zubat")).toBe(true)
+    expect(names.has("ponyta")).toBe(true)
+    expect(names.size).toBe(2)
+  })
+
+  it("throws a PokeCipherError on a non-ok response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, 500)))
+    await expect(fetchKnownNames()).rejects.toBeInstanceOf(PokeCipherError)
+  })
+
+  it("throws when the payload is malformed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ names: "nope" })))
+    await expect(fetchKnownNames()).rejects.toBeInstanceOf(PokeCipherError)
   })
 })

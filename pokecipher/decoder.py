@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from .constants import MAX_DECODE_BRANCHES
 from .markers import UNRESOLVED, format_ambiguity, format_mismatch
-from .pokedex import NAME_INDEX, NUM_REGIONS
+from .pokedex import NUM_REGIONS, lookup_name
 from .state import CharCounts
 from .tokens import (
     CHAR_TOKEN_PREFIX,
@@ -185,7 +185,7 @@ def decode_message(encoded_pokemon_string: str) -> str:
             pending.append(Literal(literal))
             continue
 
-        mappings = NAME_INDEX.get(token)
+        mappings = lookup_name(token)
         if mappings is None:
             pending.append(Literal(format_unknown(token)))
             continue

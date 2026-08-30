@@ -29,7 +29,7 @@ from pokecipher import (
 from pokecipher.decoder import Branch, Mismatch, Slot, fork, literal_for, render, resolve
 from pokecipher.errors import PokedexError
 from pokecipher.markers import format_ambiguity, format_mismatch
-from pokecipher.pokedex import build_name_index, validate_regions
+from pokecipher.pokedex import FOLDED_NAME_INDEX, build_name_index, lookup_name, validate_regions
 from pokecipher.state import CharCounts
 from pokecipher.tokens import (
     CHAR_TOKEN_PREFIX,
@@ -469,3 +469,44 @@ class TestCompatibilityShim(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class CaseInsensitiveLookupTests(unittest.TestCase):
+    """Ciphertext decodes regardless of the case it arrives in.
+
+    Ciphertext routed through a URL, a chat client or a spreadsheet is often
+    lowercased. Before this, every token became ``<?unknown: ...>`` and nothing
+    on screen indicated that case was the cause.
+    """
+
+    CANONICAL = "Zubat Weepinbell Ponyta Gyarados Slowbro"
+
+    def test_canonical_case_still_decodes(self) -> None:
+        self.assertEqual(decode_message(self.CANONICAL), "Hello")
+
+    def test_lowercase_decodes(self) -> None:
+        self.assertEqual(decode_message(self.CANONICAL.lower()), "Hello")
+
+    def test_uppercase_decodes(self) -> None:
+        self.assertEqual(decode_message(self.CANONICAL.upper()), "Hello")
+
+    def test_mixed_case_decodes(self) -> None:
+        self.assertEqual(decode_message("zUbAt WeEpInBeLl PoNyTa GyArAdOs SlOwBrO"), "Hello")
+
+    def test_unknown_names_stay_unknown(self) -> None:
+        """Folding must not turn a non-name into a match."""
+        self.assertEqual(decode_message("fakemon"), "<?unknown: fakemon>")
+
+    def test_punctuated_names_fold(self) -> None:
+        """Names carrying an apostrophe or a hyphen fold like any other."""
+        self.assertEqual(decode_message("farfetch'd"), decode_message("Farfetch'd"))
+        self.assertEqual(decode_message("nidoran-f"), decode_message("Nidoran-F"))
+
+    def test_lookup_name_is_the_single_entry_point(self) -> None:
+        """Both spellings resolve to the identical mapping list, not a copy."""
+        self.assertEqual(lookup_name("zubat"), lookup_name("Zubat"))
+        self.assertIsNone(lookup_name("Definitely Not A Pokemon"))
+
+    def test_folded_index_has_no_collisions(self) -> None:
+        """Folding is only safe because no two names collide; assert that holds."""
+        self.assertEqual(len(FOLDED_NAME_INDEX), len(NAME_INDEX))

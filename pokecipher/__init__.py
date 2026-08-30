@@ -11,7 +11,14 @@ Public surface
 from .constants import ASCII_MAX, ASCII_MIN, MAX_DECODE_BRANCHES, REGION_SIZE
 from .decoder import decode_message
 from .encoder import encode_message
-from .pokedex import NAME_INDEX, NUM_REGIONS, REGION_LISTS, REGION_NAMES, REGIONS
+from .pokedex import (
+    NAME_INDEX,
+    NUM_REGIONS,
+    REGION_LISTS,
+    REGION_NAMES,
+    REGIONS,
+    lookup_name,
+)
 
 #: Backwards-compatible alias for the decoder's original name.
 decode_flexible_error_reporting = decode_message
@@ -29,4 +36,5 @@ __all__ = [
     "decode_flexible_error_reporting",
     "decode_message",
     "encode_message",
+    "lookup_name",
 ]

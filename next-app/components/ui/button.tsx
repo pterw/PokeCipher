@@ -15,9 +15,13 @@ const buttonVariants = cva(
         ghost: "border-transparent bg-transparent text-foreground hover:bg-secondary",
       },
       size: {
-        default: "h-9 px-4 text-sm",
-        sm: "h-8 px-3 text-xs",
-        lg: "h-10 px-6 text-sm",
+        // VT323 has an x-height near half its em, so it reads far smaller than the
+        // nominal size: text-sm renders like ~10px of a normal face. DESIGN.md's
+        // body scale is 18-20px and the hero already follows it; these sizes are
+        // what made the tool below look like a different, smaller application.
+        default: "h-10 px-4 text-lg",
+        sm: "h-9 px-3 text-base",
+        lg: "h-11 px-6 text-xl",
         icon: "size-9",
       },
     },

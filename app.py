@@ -42,7 +42,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pokecipher import decode_message, encode_message
+from pokecipher import NAME_INDEX, decode_message, encode_message
 
 MAX_BODY_BYTES = 32 * 1024
 
@@ -72,7 +72,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
 
@@ -110,6 +110,25 @@ async def read_text(request: Request) -> str:
             status_code=413, detail=f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."
         )
     return text
+
+
+@app.get("/api/names")
+async def names() -> JSONResponse:
+    """Every Pokémon name the decoder accepts, for client-side input validation.
+
+    The frontend gates its decode control on whether the input actually looks like
+    ciphertext, which it cannot judge without the name set. Serving that set from
+    the live Pokédex keeps Python the single source of truth: the list is derived
+    here, never copied into TypeScript, so changing the dex reaches the UI without
+    a second edit.
+
+    Cached for an hour. The payload is ~1.8 KB and only changes when the Pokédex
+    does, which is a deploy.
+    """
+    return JSONResponse(
+        {"names": sorted(NAME_INDEX)},
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.post("/api/encode")

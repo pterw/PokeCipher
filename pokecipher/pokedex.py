@@ -153,3 +153,41 @@ validate_regions(REGIONS, REGION_NAMES)
 
 #: Pokémon name → every (character, region index) pair it can represent.
 NAME_INDEX: dict[PokemonName, list[tuple[str, int]]] = build_name_index(REGIONS, REGION_NAMES)
+
+
+def build_folded_index(
+    index: dict[PokemonName, list[tuple[str, int]]],
+) -> dict[str, list[tuple[str, int]]]:
+    """Build a case-folded view of ``index`` for tolerant decoding.
+
+    Raises :class:`PokedexError` if two distinct names fold together with
+    different mappings, which would make case-insensitive lookup ambiguous in a
+    way the cased index is not. Checked here rather than assumed, in keeping with
+    the module's fail-at-import contract.
+    """
+    folded: dict[str, list[tuple[str, int]]] = {}
+    for name, mappings in index.items():
+        key = name.casefold()
+        existing = folded.get(key)
+        if existing is not None and existing != mappings:
+            raise PokedexError(f"Case-folded name collision on {key!r}.")
+        folded[key] = mappings
+    return folded
+
+
+#: Case-folded view of :data:`NAME_INDEX`, for :func:`lookup_name`.
+FOLDED_NAME_INDEX: dict[str, list[tuple[str, int]]] = build_folded_index(NAME_INDEX)
+
+
+def lookup_name(token: PokemonName) -> list[tuple[str, int]] | None:
+    """Return the candidate (character, region) pairs for ``token``, ignoring case.
+
+    Produce strictly, consume tolerantly. The encoder only ever emits canonical
+    capitalisation, but ciphertext routed through a URL, a chat client or a
+    spreadsheet often arrives lowercased, and the failure is silent: every token
+    becomes ``<?unknown: ...>`` with nothing to indicate that case was the cause.
+    """
+    mappings = NAME_INDEX.get(token)
+    if mappings is not None:
+        return mappings
+    return FOLDED_NAME_INDEX.get(token.casefold())

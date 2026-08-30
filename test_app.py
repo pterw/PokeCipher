@@ -40,6 +40,28 @@ class EncodeDecodeTests(unittest.TestCase):
         self.assertEqual(response.json(), {"result": ""})
 
 
+class NamesEndpointTests(unittest.TestCase):
+    """/api/names serves the decoder's vocabulary for client-side validation."""
+
+    def test_returns_every_indexed_name_sorted(self) -> None:
+        from pokecipher import NAME_INDEX
+
+        response = client.get("/api/names")
+        self.assertEqual(response.status_code, 200)
+        names = response.json()["names"]
+        self.assertEqual(names, sorted(NAME_INDEX))
+
+    def test_is_cacheable(self) -> None:
+        """The list only changes on deploy, so it must not be refetched per keystroke."""
+        response = client.get("/api/names")
+        self.assertIn("max-age", response.headers["cache-control"])
+
+    def test_allows_cross_origin_get(self) -> None:
+        """The frontend is a separate deployment, so GET must pass CORS too."""
+        response = client.get("/api/names", headers={"Origin": "https://example.com"})
+        self.assertEqual(response.headers["access-control-allow-origin"], "*")
+
+
 class RequestValidationTests(unittest.TestCase):
     """Every rejection is a 400 or 413 carrying an ``error`` string."""
 
