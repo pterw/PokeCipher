@@ -39,15 +39,6 @@ const nextConfig: NextConfig = {
   // 127.0.0.1 leaves HMR dead and the dev client falls back to full reloads.
   allowedDevOrigins: ["127.0.0.1"],
 
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "img.pokemondb.net",
-        pathname: "/sprites/**",
-      },
-    ],
-  },
   async rewrites() {
     const origin = API_ORIGIN || (ON_VERCEL ? "" : LOCAL_API_ORIGIN)
     if (!origin) return []
