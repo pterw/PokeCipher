@@ -13,12 +13,19 @@ import { cn } from "@/lib/utils"
  * apostrophes and punctuation (`Farfetch'd` -> `farfetchd`, `Nidoran-F` ->
  * `nidoran-f`). Any slug the CDN does not know falls back to the name.
  *
- * `black-white` is Generation 5, not greyscale: 96x96 indexed-colour pixel art
- * at roughly 540 bytes. The `home` set this used to load is 22 KB per sprite —
- * 41x larger for something drawn at 32px, so a 100-character message pulled
- * about 2.2 MB — and those are smooth 3D renders that fight the pixel design
- * system. The set spans Gens 1-5, so Kanto/Johto/Hoenn is covered with room for
- * the Gen 4 expansion.
+ * The `ruby-sapphire` set is Generation 3 — GBA hardware, the same machine whose
+ * palette the design system emulates, and whose roster is exactly this cipher's
+ * Kanto + Johto + Hoenn. All 210 names in use resolve there, at ~626 bytes each.
+ *
+ * Two earlier choices were wrong. `home` renders are 22 KB smooth 3D models, so
+ * a 100-character message pulled ~2.2 MB and fought the pixel world. `black-white`
+ * fixed the weight but is Generation 5 art on Nintendo DS, an era the Game Boy
+ * north star does not include.
+ *
+ * The dimensions matter as much as the era: these are 64x64, so drawing them in a
+ * 32px cell is an exact 2:1 downscale where every output pixel is one 2x2 source
+ * block. That is what makes `image-rendering: pixelated` faithful here — at the
+ * 96x96 set's 3:1 it discarded two of every three pixels and read as mush.
  */
 export function spriteUrl(name: string): string {
   const slug = name
@@ -26,7 +33,7 @@ export function spriteUrl(name: string): string {
     .replace(/['’.]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-  return `https://img.pokemondb.net/sprites/black-white/normal/${slug}.png`
+  return `https://img.pokemondb.net/sprites/ruby-sapphire/normal/${slug}.png`
 }
 
 interface PokemonTokenProps {
@@ -53,7 +60,7 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
 
   return (
     <span
-      className="inline-flex h-8 w-8 items-center justify-center border border-border bg-secondary/60 align-middle"
+      className="box-content inline-flex h-8 w-8 items-center justify-center border border-border bg-secondary/60 align-middle"
       title={name}
     >
       {/* A plain <img>, not next/image. The Image here always carried
@@ -70,6 +77,7 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
         loading="lazy"
         decoding="async"
         onError={() => setSpriteFailed(true)}
+        className="h-8 w-8 [image-rendering:pixelated]"
       />
     </span>
   )
