@@ -4,7 +4,10 @@ import { useEffect, useState } from "react"
 
 import { CliHero } from "@/components/cli-hero"
 import { PokemonToken } from "@/components/pokemon-token"
-import { Button } from "@/components/ui/button"
+import { BitButton } from "@/components/ui/8bit/button"
+import { BitCard } from "@/components/ui/8bit/card"
+import { BitCheckbox } from "@/components/ui/8bit/checkbox"
+import { BitTextarea } from "@/components/ui/8bit/textarea"
 import { splitMarkers } from "@/lib/markers"
 import {
   MAX_TEXT_CHARS,
@@ -50,23 +53,20 @@ export default function Page() {
       .then((names) => {
         if (!cancelled) setKnownNames(names)
       })
-      .catch(() => {
-        /* Decoding stays gated shut; encode still works. */
+      .catch((err) => {
+        console.error("Failed to fetch Pokedex names for decode gate:", err)
       })
     return () => {
       cancelled = true
     }
   }, [])
 
-  const tooLong = !isWithinLimit(input)
-  const hasInput = input.trim().length > 0
-  // Gate decode, never encode: any text is encodable, but decoding plaintext
-  // produces a wall of <?unknown: ...> tokens presented as though it were output.
-  // If the control cannot be pressed, that state cannot be reached.
   const canDecode = looksLikeCiphertext(input, knownNames)
   const recognised = canDecode ? countKnownNames(input, knownNames) : 0
+  const hasInput = input.trim().length > 0
+  const tooLong = !isWithinLimit(input)
 
-  async function run(nextMode: Mode) {
+  async function run(targetMode: Mode) {
     if (!hasInput) {
       setError("Type something first.")
       return
@@ -75,38 +75,41 @@ export default function Page() {
       setError(`Text is limited to ${MAX_TEXT_CHARS} characters.`)
       return
     }
-
-    setBusy(true)
+    if (busy) return
     setError(null)
+    setBusy(true)
     try {
-      const output = nextMode === "encode" ? await encodeText(input) : await decodeText(input)
-      setMode(nextMode)
-      setResult(output)
-    } catch (caught) {
-      setError(
-        caught instanceof PokeCipherError
-          ? caught.message
-          : "Could not reach the cipher service."
-      )
+      if (targetMode === "encode") {
+        const text = await encodeText(input)
+        setResult(text)
+        setMode("encode")
+      } else {
+        const text = await decodeText(input)
+        setResult(text)
+        setMode("decode")
+      }
+    } catch (err) {
+      if (err instanceof PokeCipherError) {
+        setError(err.message)
+      } else {
+        setError("Could not reach the cipher service.")
+      }
     } finally {
       setBusy(false)
     }
   }
 
-  // Swapping moves the result into the input, so the gate has to be re-evaluated
-  // from the new text. It is derived from `input` on every render, so this needs
-  // no explicit recomputation — only the state change below.
+  function clearAll() {
+    setInput("")
+    setResult("")
+    setError(null)
+  }
+
   function swap() {
     if (!result) return
     setInput(result)
     setResult("")
     setMode(mode === "encode" ? "decode" : "encode")
-    setError(null)
-  }
-
-  function clearAll() {
-    setInput("")
-    setResult("")
     setError(null)
   }
 
@@ -122,70 +125,74 @@ export default function Page() {
   return (
     <>
       <CliHero />
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-16 pt-6">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-6 pt-0 pb-10">
         <header>
-          <h2 className="font-pixel text-lg leading-tight text-foreground">Encode &amp; Decode</h2>
-          <p className="mt-2 text-lg text-foreground">
+          <h2 className="font-pixel text-lg text-foreground sm:text-xl">Encode &amp; Decode</h2>
+          <p className="mt-0.5 text-base text-foreground sm:text-lg">
             Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
           </p>
         </header>
 
-        <section className="flex flex-col gap-2">
+        <section className="flex flex-col gap-1.5">
           <label htmlFor="input" className="text-sm uppercase tracking-wide text-foreground">
             Input
           </label>
-          <textarea
+          <BitTextarea
             id="input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            rows={6}
             spellCheck={false}
             placeholder="Type a message, or paste Pokemon names to decode."
-            className="w-full resize-y border border-border bg-input p-3 font-mono text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex items-center justify-between text-sm">
             <span className={tooLong ? "text-marker-mismatch" : "text-foreground"}>
               {input.length} / {MAX_TEXT_CHARS}
             </span>
-            <label className="flex items-center gap-2 text-foreground">
-              <input
-                type="checkbox"
+            <label
+              htmlFor="show-sprites"
+              className="flex cursor-pointer items-center gap-2 text-foreground select-none font-terminal text-lg"
+            >
+              <BitCheckbox
+                id="show-sprites"
                 checked={showSprites}
                 onChange={(event) => setShowSprites(event.target.checked)}
-                className="accent-primary"
               />
-              Show sprites
+              <span>Show sprites</span>
             </label>
           </div>
         </section>
 
-        <section className="flex flex-wrap gap-2">
-          <Button onClick={() => run("encode")} disabled={busy}>
+        <section className="flex flex-wrap items-center gap-3">
+          <BitButton
+            variant="yellow"
+            onClick={() => run("encode")}
+            disabled={busy}
+          >
             {busy ? "Working..." : "Encode to Pokemon"}
-          </Button>
+          </BitButton>
           {/*
             aria-disabled rather than disabled: the control keeps its place in the
             tab order and stays announced, so a keyboard or screen-reader user can
             find it and read why it is unavailable, instead of it silently
             vanishing from the page.
           */}
-          <Button
+          <BitButton
             variant="secondary"
             onClick={() => canDecode && run("decode")}
             aria-disabled={!canDecode || busy}
             className={cn(!canDecode && "cursor-not-allowed opacity-40")}
           >
             Decode to text
-          </Button>
-          <Button variant="outline" onClick={swap} disabled={!result}>
+          </BitButton>
+          <BitButton variant="outline" onClick={swap} disabled={!result}>
             Swap
-          </Button>
-          <Button variant="outline" onClick={copy} disabled={!result}>
+          </BitButton>
+          <BitButton variant="outline" onClick={copy} disabled={!result}>
             Copy
-          </Button>
-          <Button variant="ghost" onClick={clearAll}>
+          </BitButton>
+          <BitButton variant="ghost" onClick={clearAll}>
             Clear
-          </Button>
+          </BitButton>
         </section>
 
         {/*
@@ -214,15 +221,22 @@ export default function Page() {
             <h2 className="text-sm uppercase tracking-wide text-foreground">
               {mode === "encode" ? "Pokemon" : "Decoded text"}
             </h2>
-            <div className="min-h-24 border border-border bg-card p-3 font-mono text-lg leading-8 text-card-foreground">
-              {mode === "encode"
-                ? result.split(" ").map((name, index) => (
-                    <span key={index}>
-                      {index > 0 ? " " : null}
-                      <PokemonToken name={name} showSprites={showSprites} />
-                    </span>
-                  ))
-                : splitMarkers(result).map((piece, index) => (
+            <BitCard className="min-h-24 p-4 font-mono text-lg text-card-foreground">
+              {mode === "encode" ? (
+                showSprites ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {result.split(" ").map((name, index) => (
+                      <PokemonToken key={index} name={name} showSprites={true} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="leading-relaxed text-foreground select-all break-words">
+                    {result}
+                  </p>
+                )
+              ) : (
+                <div className="leading-relaxed select-all break-words">
+                  {splitMarkers(result).map((piece, index) => (
                     <span
                       key={index}
                       className={cn(
@@ -233,7 +247,9 @@ export default function Page() {
                       {piece.text}
                     </span>
                   ))}
-            </div>
+                </div>
+              )}
+            </BitCard>
             {/*
               Only describe markers actually on screen. The old fixed legend named
               amber and red even when every marker was blue, so the one piece of
