@@ -55,7 +55,7 @@ Full-stack, with Python as the single source of truth for the cipher:
 
 ```
 pokecipher/   Cipher core, one concern per module.
-api/          Vercel Python serverless functions: POST /api/encode, /api/decode.
+app.py        FastAPI app: POST /api/encode, POST /api/decode.
 next-app/     Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
 cipher.py     Backwards-compatible re-export shim.
 ```
@@ -71,10 +71,14 @@ PokémonDB CDN keyed by name, falling back to the name when a slug is unknown.
 Python side, from the repository root:
 
 ```bash
-python -m pip install -r requirements-dev.txt
-python -m pytest          # run the test suite
-python -m ruff check .    # lint
+python -m pip install -e ".[dev]"
+python -m pytest              # run the test suite
+python -m ruff check .        # lint
+uvicorn app:app --port 8000   # serve the API for the frontend
 ```
+
+The frontend proxies `/api/*` to port 8000 in local development, so run that
+alongside `npm run dev`. It is the same `app.py` that runs in production.
 
 Frontend, from `next-app/`:
 
@@ -85,13 +89,13 @@ npm run dev               # http://localhost:3000
 
 ## Deployment
 
-Deployed on Vercel as **two projects from this repository**, because Vercel
-cannot host a Next.js app and Python serverless functions in a single project:
+Deployed on Vercel as **two projects from this repository**, because a single
+project cannot host both a Next.js app and a Python backend:
 
-| Project | Root directory | Serves |
-|---|---|---|
-| API | `.` (repository root) | `api/encode.py`, `api/decode.py` |
-| Web | `next-app` | the Next.js frontend |
+| Project | Root directory | Framework | Serves |
+|---|---|---|---|
+| API | `.` (repository root) | `fastapi` | `app.py`, as one Function |
+| Web | `next-app` | `nextjs` | the Next.js frontend |
 
 Both deploy on push to `main`; every pull request gets a preview URL. Copy
 `next-app/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the API

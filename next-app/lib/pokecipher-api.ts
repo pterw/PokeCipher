@@ -10,7 +10,7 @@ const DEFAULT_MAX_CHARS = 4_000
 /** Where the Python API is deployed. Same-origin by default in production. */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? ""
 
-/** Mirrors api_support.MAX_TEXT_CHARS. */
+/** Mirrors app.MAX_TEXT_CHARS. */
 export const MAX_TEXT_CHARS =
   Number(process.env.NEXT_PUBLIC_MAX_TEXT_CHARS) || DEFAULT_MAX_CHARS
 
