@@ -26,6 +26,10 @@
   /* Accent: the one warm colour in an otherwise green terminal. */
   --poke-yellow: #ffd100;
 
+  /* The terminal interior, deliberately darker than the page so the transcript
+     reads as a recessed screen. Also the wordmark's stroke and offset colour. */
+  --terminal-void: #071a07;
+
   /* Decoder marker colours: ambiguity, state mismatch, unknown token. */
   --marker-ambiguous: #e8b93b;
   --marker-mismatch: #e0674f;
@@ -53,6 +57,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-poke-yellow: var(--poke-yellow);
+  --color-terminal-void: var(--terminal-void);
 
   --color-marker-ambiguous: var(--marker-ambiguous);
   --color-marker-mismatch: var(--marker-mismatch);
@@ -76,6 +81,19 @@
     background-color: var(--background);
     color: var(--foreground);
   }
+}
+
+/* Wordmark lockup: hard pixel offset, no blur. The stroke is what keeps the
+   mark legible where it crosses the backdrop's light sky band; paint-order puts
+   it behind the fill so it outlines the letterforms instead of eating them. */
+@utility wordmark {
+  letter-spacing: -0.03em;
+  /* em-based so the offset keeps its proportion as the mark scales. The shadow
+     is what carries the wordmark over the backdrop: the sky band defeats every
+     colour in the palette, but a hard offset reads as shape, not contrast. */
+  -webkit-text-stroke: 0.055em var(--terminal-void);
+  paint-order: stroke fill;
+  text-shadow: 0.12em 0.12em 0 var(--terminal-void);
 }
 
 /* Hard-edged block cursor for the CLI hero. */

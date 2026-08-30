@@ -95,8 +95,8 @@ cannot host a Next.js app and Python serverless functions in a single project:
 
 Both deploy on push to `main`; every pull request gets a preview URL. Copy
 `next-app/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the API
-project's URL (for example `https://pokecipher-api.vercel.app`). Left empty, the
-frontend calls `/api/*` on its own origin.
+project's URL (for example `https://poke-cipher-pterws-projects.vercel.app`).
+Left empty, the frontend calls `/api/*` on its own origin.
 
 ## API
 

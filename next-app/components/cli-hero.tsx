@@ -212,61 +212,64 @@ export function CliHero() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-4xl px-6 pt-10 pb-10 sm:pt-12 sm:pb-12">
-        <h1 className="font-pixel text-3xl leading-tight text-foreground sm:text-4xl">
-          PokeCipher
-        </h1>
-        <p className="mt-2 font-terminal text-xl text-foreground sm:text-2xl">
-          $ encrypt.txt --help
-        </p>
+        <div>
+          <h1 className="wordmark font-pixel text-[clamp(1.4rem,4vw,2.5rem)] leading-none">
+            <span className="text-poke-yellow">Poké</span>
+            <span className="text-foreground">Cipher</span>
+          </h1>
+          <p className="mt-2 font-terminal text-xl text-foreground sm:text-2xl">
+            $ encrypt.txt --help
+          </p>
+        </div>
         <p className="mt-3 max-w-[80ch] font-terminal text-lg leading-snug text-foreground sm:text-xl">
           Turn text into Pokemon names — and Pokemon names back into text.
         </p>
 
-        <div className="mt-6 border border-border bg-[#071a07]">
-          <div className="border-b border-border bg-secondary px-3 py-1.5 font-terminal text-sm text-muted-foreground">
+        <div className="mt-6 border border-border bg-terminal-void">
+          <div className="border-b border-border bg-secondary px-4 py-3 font-terminal text-sm text-foreground">
             bash
           </div>
-          <div className="space-y-0.5 p-4 font-terminal text-lg text-foreground sm:text-xl">
-            {lines.map((line, index) => (
-              <p
-                key={index}
-                className={
-                  line.kind === "out"
-                    ? "text-primary"
-                    : line.kind === "err"
-                      ? "text-destructive"
-                      : line.kind === "info"
-                        ? "text-muted-foreground"
-                        : "text-foreground"
-                }
-              >
-                {line.kind === "cmd" ? <span className="text-poke-yellow">$ </span> : null}
-                {line.text}
-              </p>
-            ))}
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void submit()
-              }}
+          <div className="min-h-[22rem] space-y-0.5 p-4 font-terminal text-lg text-foreground sm:text-xl">
+          {lines.map((line, index) => (
+            <p
+              key={index}
+              className={
+                line.kind === "out"
+                  ? "text-primary"
+                  : line.kind === "err"
+                    ? "text-destructive"
+                    : line.kind === "info"
+                      ? "text-muted-foreground"
+                      : "text-foreground"
+              }
             >
-              <span className="text-poke-yellow">$</span>
-              {input === "" && !busy && !focused ? (
-                <span className="h-5 w-3 shrink-0 animate-blink bg-poke-yellow" aria-hidden />
-              ) : null}
-              <input
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                disabled={busy}
-                spellCheck={false}
-                autoComplete="off"
-                aria-label="Terminal input"
-                className="min-w-0 flex-1 bg-transparent font-terminal text-lg text-foreground focus:outline-none sm:text-xl"
-              />
-            </form>
+              {line.kind === "cmd" ? <span className="text-poke-yellow">$ </span> : null}
+              {line.text}
+            </p>
+          ))}
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
+          >
+            <span className="text-poke-yellow">$</span>
+            {input === "" && !busy && !focused ? (
+              <span className="h-5 w-3 shrink-0 animate-blink bg-poke-yellow" aria-hidden />
+            ) : null}
+            <input
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              disabled={busy}
+              spellCheck={false}
+              autoComplete="off"
+              aria-label="Terminal input"
+              className="min-w-0 flex-1 bg-transparent font-terminal text-lg text-foreground focus:outline-none sm:text-xl"
+            />
+          </form>
           </div>
         </div>
       </div>
