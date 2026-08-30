@@ -65,3 +65,6 @@ _*.txt
 BOOTSTRAP.md
 # Stray scaffold left in the repo root; next-app/ is the real frontend.
 shadcn-test/
+
+.vercel
+.env*
