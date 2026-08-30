@@ -1,12 +1,48 @@
-# Tool configuration only. The cipher ships as plain source to Vercel's Python
-# runtime, so there is no [project]/[build-system] table: nothing is packaged
-# or installed, it is uploaded and imported as-is.
+# Project metadata and dependencies, plus tool configuration.
+#
+# The [project] table is not optional: Vercel's FastAPI preset installs with uv,
+# and `uv lock` fails the build outright on a pyproject.toml that has none —
+# "error: No `project` table found". This file is therefore the single source of
+# dependency truth for both the deployment and CI; there are no requirements
+# files. The deployment runtime is pinned by .python-version, which Vercel reads
+# before pyproject.toml; `requires-python` states the support policy instead, so
+# the two are not conflated.
+#
+# The FastAPI entrypoint is found by filename (`app` in app.py), so no
+# [tool.vercel] table is needed, and app.py is not packaged: Vercel imports it
+# from the source tree.
+
+[project]
+name = "pokecipher"
+version = "0.1.0"
+description = "A stateful polyalphabetic substitution cipher over Pokemon names."
+# AGENTS.md commits to "Python 3.10+ syntax"; keep the metadata baseline on
+# that policy rather than on whichever runtime the deployment happens to use.
+requires-python = ">=3.10"
+dependencies = ["fastapi==0.141.1"]
+
+[project.optional-dependencies]
+# httpx backs fastapi.testclient.TestClient; uvicorn serves app.py locally on the
+# port next.config.ts proxies to (`uvicorn app:app --port 8000`).
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "httpx>=0.28", "uvicorn>=0.34"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pokecipher"]
+# cipher.py is a documented backwards-compatible shim, so a built wheel has to
+# carry it or `from cipher import encode_message` breaks for anyone not running
+# from the checkout. app.py is deliberately absent: it is the deployment
+# entrypoint that Vercel imports from the source tree, not a library module.
+py-modules = ["cipher"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 src = ["."]
-extend-exclude = ["next-app", "shadcn-test", "node_modules", ".venv", "venv"]
+extend-exclude = ["next-app", "node_modules", ".venv", "venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -16,22 +52,19 @@ ignore = ["E501"]
 testpaths = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*", "Layer*"]
-# next-app/shadcn-test are Node projects; shadcn-test is not even a valid
-# Python identifier, so recursion into it must be prevented explicitly.
+# next-app is a Node project; keep pytest out of it and out of build dirs.
 norecursedirs = [
     "*.egg",
     ".git",
     ".venv",
-    "api",
     "next-app",
     "node_modules",
-    "shadcn-test",
     "venv",
 ]
 addopts = "--strict-markers"
 
 [tool.coverage.run]
-source = ["pokecipher", "cipher"]
+source = ["pokecipher", "cipher", "app"]
 branch = true
 
 [tool.coverage.report]

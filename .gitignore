@@ -55,6 +55,8 @@ Thumbs.db
 *.log
 # Agent command-output captures (stdout redirects from flaky terminal sessions).
 _*.txt
+build_logs.txt
+local_build.txt
 
 # --- Agent tooling ---
 # Worktree-local skill/workflow definitions; not part of the project.
@@ -63,7 +65,9 @@ _*.txt
 # --- Local working files, never committed ---
 # Handoff notes for AI agent sessions. Lives on disk, but must not reach main.
 BOOTSTRAP.md
-# Stray scaffold left in the repo root; next-app/ is the real frontend.
+# Stray Turborepo scaffold from an early "shadcn in a monorepo" experiment that
+# predates next-app/. It carries its own .git, so without this it stages as a
+# gitlink. Safe to delete from disk; next-app/ is the real frontend.
 shadcn-test/
 
 .vercel

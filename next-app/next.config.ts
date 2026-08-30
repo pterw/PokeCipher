@@ -11,9 +11,9 @@ import type { NextConfig } from "next"
 //                                   Python functions from /api/* same-origin,
 //                                   so rewriting would point them at us.
 //  3. Unset, running locally     -> proxy to the stdlib server on port 8000
-//                                   (`python api_server.py`). This covers both
-//                                   `next dev` and `next start`, which
-//                                   api_server.py documents as supported.
+//                                   (`uvicorn app:app --port 8000`). This
+//                                   covers both `next dev` and `next start`;
+//                                   NODE_ENV cannot stand in for it.
 //
 // Read the variable with `||`, not `??`: .env.local ships it set-but-empty,
 // and an empty string is not nullish, so `??` yields "" and the destination
@@ -39,15 +39,6 @@ const nextConfig: NextConfig = {
   // 127.0.0.1 leaves HMR dead and the dev client falls back to full reloads.
   allowedDevOrigins: ["127.0.0.1"],
 
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "img.pokemondb.net",
-        pathname: "/sprites/**",
-      },
-    ],
-  },
   async rewrites() {
     const origin = API_ORIGIN || (ON_VERCEL ? "" : LOCAL_API_ORIGIN)
     if (!origin) return []

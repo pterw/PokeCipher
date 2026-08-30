@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { useState } from "react"
 
 import { cn } from "@/lib/utils"
@@ -13,6 +12,13 @@ import { cn } from "@/lib/utils"
  * name can mean different characters in different regions. Slugs drop
  * apostrophes and punctuation (`Farfetch'd` -> `farfetchd`, `Nidoran-F` ->
  * `nidoran-f`). Any slug the CDN does not know falls back to the name.
+ *
+ * `black-white` is Generation 5, not greyscale: 96x96 indexed-colour pixel art
+ * at roughly 540 bytes. The `home` set this used to load is 22 KB per sprite —
+ * 41x larger for something drawn at 32px, so a 100-character message pulled
+ * about 2.2 MB — and those are smooth 3D renders that fight the pixel design
+ * system. The set spans Gens 1-5, so Kanto/Johto/Hoenn is covered with room for
+ * the Gen 4 expansion.
  */
 export function spriteUrl(name: string): string {
   const slug = name
@@ -20,7 +26,7 @@ export function spriteUrl(name: string): string {
     .replace(/['’.]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-  return `https://img.pokemondb.net/sprites/home/normal/${slug}.png`
+  return `https://img.pokemondb.net/sprites/black-white/normal/${slug}.png`
 }
 
 interface PokemonTokenProps {
@@ -50,12 +56,19 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
       className="inline-flex h-8 w-8 items-center justify-center border border-border bg-secondary/60 align-middle"
       title={name}
     >
-      <Image
+      {/* A plain <img>, not next/image. The Image here always carried
+          `unoptimized`, which makes next/image return the raw src and skip
+          /_next/image entirely — so the optimizer, and the `remotePatterns`
+          allow-list that gates it, were never in play. What remained was a
+          wrapper whose every remaining feature is one attribute below. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={spriteUrl(name)}
         alt={name}
         width={32}
         height={32}
-        unoptimized
+        loading="lazy"
+        decoding="async"
         onError={() => setSpriteFailed(true)}
       />
     </span>

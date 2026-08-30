@@ -53,8 +53,8 @@ pokecipher/      Cipher core. One concern per module.
   encoder.py     Plaintext → Pokémon names.
   decoder.py     Pokémon names → plaintext (fork/merge branch engine).
 cipher.py        Backwards-compatible re-export shim. Do not add logic here.
-api/             Vercel Python serverless functions (encode, decode).
-api_support.py   Shared HTTP plumbing for the api/ handlers.
+app.py           FastAPI app: POST /api/encode, POST /api/decode. The only
+                 HTTP surface; Vercel finds it by filename.
 next-app/        Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
   lib/pokecipher-api.ts  The only place the frontend talks to Python.
   lib/markers.ts         Parses [x,y] / {x,y} / <?...> for colour-coding.
@@ -73,16 +73,28 @@ tests            Live at the repository root as test_*.py files.
 
 ## Deployment
 
-Deployed on Vercel as **two projects from this one repository**. Vercel cannot
-host a Next.js app and Python functions in a single project, so do not try to
-merge them.
+Deployed on Vercel as **two projects from this one repository**. A single project
+cannot host both a Next.js app and a Python backend, so do not try to merge them.
+(Vercel's [Services](https://vercel.com/docs/services) feature is the sanctioned
+way to combine them if that is ever worth revisiting.)
 
-1. **API** — root directory `.` (the repository root). Serves `api/encode.py`
-   and `api/decode.py`; `vercel.json` sets `framework: null`.
-2. **Web** — root directory `next-app`. Next.js is auto-detected there, so no
-   `vercel.json` is needed.
+1. **API** — root directory `.` (the repository root). `vercel.json` sets
+   `framework: "fastapi"`, and Vercel deploys `app.py` as a single Function.
+2. **Web** — root directory `next-app`. `next-app/vercel.json` pins
+   `framework: "nextjs"`. That file is not optional: the repository-root
+   `vercel.json` reaches this project too, so without it the web build inherits
+   `framework: "fastapi"` and fails with `FASTAPI_ENTRYPOINT_NOT_FOUND`.
 
 Both deploy on push to `main`. Every pull request gets a preview URL.
+
+**Do not reintroduce an `api/` directory of `.py` files.** Vercel's file-based
+Python functions are now limited to projects created before that path was
+retired — the docs say so in as many words: "Vercel supports *existing* projects
+that define file-based Python functions in an `/api` directory." A project
+created today fails in `vercel build`, seconds after clone and before
+dependencies install, with `The pattern "api/**/*.py" ... doesn't match any
+Serverless Functions`. That is not a configuration problem and no `vercel.json`
+key fixes it. FastAPI at a supported entrypoint is the replacement.
 
 ## Commands
 
@@ -157,9 +169,8 @@ not on PATH in this environment.
   prefix of every possible future. Dropping that history is what keeps decoding
   near-linear; removing the collapse step silently restores quadratic cost.
 - **Cap limits at the transport, not in the core.** Decode cost rises when an
-  ambiguity survives an entire message, so `api_support.MAX_TEXT_CHARS` bounds
-  input. Keep the cipher functions total and unbounded; enforce policy at the
-  boundary.
+  ambiguity survives an entire message, so `app.MAX_TEXT_CHARS` bounds input.
+  Keep the cipher functions total and unbounded; enforce policy at the boundary.
 - **Ciphertext is a compatibility surface.** Changing the Pokédex lists or the
   algorithm invalidates every message ever encoded.
 
