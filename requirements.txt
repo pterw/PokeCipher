@@ -1,5 +1,7 @@
 # PokéCipher runtime dependencies.
 #
-# The cipher itself is pure standard library. This file exists so Vercel
-# detects the project as Python and provisions the runtime for api/*.py.
-# Add real dependencies here when the cipher needs them.
+# The cipher itself is pure standard library. Vercel only provisions the
+# Python runtime for the file-based `api/*.py` functions when this file lists
+# at least one installable package, so a single marker dependency is required
+# purely to trigger Python detection. It is not imported by the cipher.
+requests==2.32.3
