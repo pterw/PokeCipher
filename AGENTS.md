@@ -80,8 +80,10 @@ way to combine them if that is ever worth revisiting.)
 
 1. **API** — root directory `.` (the repository root). `vercel.json` sets
    `framework: "fastapi"`, and Vercel deploys `app.py` as a single Function.
-2. **Web** — root directory `next-app`. Next.js is auto-detected there, so no
-   `vercel.json` is needed.
+2. **Web** — root directory `next-app`. `next-app/vercel.json` pins
+   `framework: "nextjs"`. That file is not optional: the repository-root
+   `vercel.json` reaches this project too, so without it the web build inherits
+   `framework: "fastapi"` and fails with `FASTAPI_ENTRYPOINT_NOT_FOUND`.
 
 Both deploy on push to `main`. Every pull request gets a preview URL.
 

@@ -97,6 +97,10 @@ project cannot host both a Next.js app and a Python backend:
 | API | `.` (repository root) | `fastapi` | `app.py`, as one Function |
 | Web | `next-app` | `nextjs` | the Next.js frontend |
 
+Both projects need their own `vercel.json`: the repository-root file reaches the
+web project too, so `next-app/vercel.json` must pin `nextjs` or the web build
+inherits the API's `fastapi` preset and fails.
+
 Both deploy on push to `main`; every pull request gets a preview URL. Copy
 `next-app/.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the API
 project's URL (for example `https://poke-cipher-pterws-projects.vercel.app`).
