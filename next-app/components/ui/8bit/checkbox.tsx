@@ -30,7 +30,7 @@ export const BitCheckbox = React.forwardRef<HTMLInputElement, BitCheckboxProps>(
         />
 
         {/* 8-bit stepped pixel frame */}
-        <div className="relative flex h-5 w-5 items-center justify-center border-y-2 border-[#000000] bg-input shadow-[2px_2px_0px_#000000] transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-poke-yellow">
+        <div className="relative flex h-5 w-5 items-center justify-center border-y-2 border-[#000000] bg-input shadow-[2px_2px_0px_#000000] transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary">
           {/* Extended X borders for stepped pixel corners */}
           <div
             className="pointer-events-none absolute inset-0 -mx-0.5 border-x-2 border-[#000000]"
@@ -39,7 +39,7 @@ export const BitCheckbox = React.forwardRef<HTMLInputElement, BitCheckboxProps>(
 
           {/* 8-bit pixel checkmark fill */}
           {checked && (
-            <span className="size-2.5 bg-poke-yellow shadow-[1px_1px_0px_#000000]" />
+            <span className="size-2.5 bg-primary shadow-[1px_1px_0px_#000000]" />
           )}
         </div>
       </label>

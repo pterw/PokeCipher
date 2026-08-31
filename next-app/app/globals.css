@@ -17,8 +17,8 @@
   --muted-foreground: #9bbc8a;
   --accent: #2c5c2c;
   --accent-foreground: #d7f5c4;
-  --destructive: #b03a2e;
-  --destructive-foreground: #f5e6d7;
+  --destructive: oklch(0.75 0.20 25);
+  --destructive-foreground: #0f380f;
   --border: #2c5c2c;
   --input: #1d4d24;
   --ring: #8bac0f;
@@ -32,7 +32,7 @@
 
   /* Decoder marker colours: ambiguity, state mismatch, unknown token. */
   --marker-ambiguous: #e8b93b;
-  --marker-mismatch: #e0674f;
+  --marker-mismatch: oklch(0.75 0.20 25);
   --marker-unknown: #7fb3d5;
 }
 
@@ -109,6 +109,26 @@
   50%,
   100% {
     opacity: 0;
+  }
+}
+
+/* Tactile CRT clear reset flash */
+@utility animate-crt-clear {
+  animation: poke-crt-clear 180ms steps(3, end);
+}
+
+@keyframes poke-crt-clear {
+  0% {
+    opacity: 0.25;
+    filter: brightness(1.8) contrast(1.2);
+  }
+  45% {
+    opacity: 0.65;
+    filter: brightness(1.3);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
   }
 }
 

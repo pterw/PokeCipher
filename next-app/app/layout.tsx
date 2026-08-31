@@ -37,6 +37,10 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <script
+          src="http://localhost:8400/live.js?token=41ee800f-7a50-4505-81fb-6ed8d12a1a2b"
+          async
+        />
       </body>
     </html>
   )

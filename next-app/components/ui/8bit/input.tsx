@@ -3,7 +3,7 @@ import { type VariantProps, cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import "@/components/ui/8bit/styles/retro.css"
 
-export const textareaVariants = cva("", {
+export const inputVariants = cva("", {
   variants: {
     font: {
       normal: "",
@@ -20,41 +20,12 @@ export const textareaVariants = cva("", {
   },
 })
 
-export interface BitTextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-    VariantProps<typeof textareaVariants> {
-  autoGrow?: boolean
-  minHeight?: number
-}
+export interface BitInputProps
+  extends React.InputHTMLAttributes<HTMLInputElement>,
+    VariantProps<typeof inputVariants> {}
 
-export const BitTextarea = React.forwardRef<
-  HTMLTextAreaElement,
-  BitTextareaProps
->(
-  (
-    {
-      className,
-      font,
-      variant,
-      autoGrow = true,
-      minHeight = 96,
-      value,
-      onChange,
-      ...props
-    },
-    ref
-  ) => {
-    const internalRef = React.useRef<HTMLTextAreaElement>(null)
-    const combinedRef = (ref || internalRef) as React.MutableRefObject<HTMLTextAreaElement | null>
-
-    React.useEffect(() => {
-      if (!autoGrow) return
-      const el = combinedRef.current
-      if (!el) return
-      el.style.height = "auto"
-      el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`
-    }, [value, autoGrow, minHeight, combinedRef])
-
+export const BitInput = React.forwardRef<HTMLInputElement, BitInputProps>(
+  ({ className, font, variant, ...props }, ref) => {
     return (
       <div className="relative mx-1.5 my-1.5">
         <div
@@ -64,13 +35,10 @@ export const BitTextarea = React.forwardRef<
             font === "retro" && "retro"
           )}
         >
-          <textarea
-            ref={combinedRef}
-            value={value}
-            onChange={onChange}
-            style={{ minHeight: `${minHeight}px` }}
+          <input
+            ref={ref}
             className={cn(
-              "w-full resize-none overflow-hidden bg-transparent p-4 font-terminal text-xl text-foreground placeholder:text-muted-foreground focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              "w-full bg-transparent p-3 font-terminal text-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none",
               className
             )}
             {...props}
@@ -98,5 +66,6 @@ export const BitTextarea = React.forwardRef<
   }
 )
 
-BitTextarea.displayName = "BitTextarea"
-export { BitTextarea as Textarea }
+BitInput.displayName = "BitInput"
+export { BitInput as Input }
+

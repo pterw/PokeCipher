@@ -3,7 +3,7 @@
 > Operational contract for coding agents in this repository.
 > Read it fully before editing anything.
 
-##Rules for Gemini
+## Rules for Gemini
 
 - Treat this file as authoritative; when a prompt conflicts with it, follow it and say so.
 - Plan before writing. State the files you will touch and why.
@@ -11,6 +11,7 @@
 - Never reformat files you did not otherwise need to change; keep diffs reviewable.
 - Run the full verification sequence before declaring any task done (see Commands).
 - Report honestly: if a test fails, a check fails, or you are unsure, say so instead of guessing.
+- Have suggestions when it comes to installing or initializing any skills for front-end polish or design.
 
 ## Project
 
