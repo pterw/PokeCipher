@@ -181,12 +181,18 @@ export function CliHero() {
       />
 
       {/* The bottom padding is smaller than the top on purpose. The band the eye
-          reads below the terminal also carries the next section's heading slack
-          (~14px), so equal padding renders as an unequal gap. These values were
-          solved by measuring both bands, not by matching the numbers. */}
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-8 pb-4 sm:pt-10 sm:pb-5">
+          reads below the terminal also carries the next section's heading slack,
+          so equal padding renders as an unequal gap. These were solved by
+          measuring both bands; 18 and 26 are off the 4px step because that is
+          where the measured delta reaches zero, and the wordmark's size feeds
+          into it, so re-measure if the mark changes. */}
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-8 pb-[18px] sm:pt-10 sm:pb-[26px]">
         <header className="overflow-visible">
-          <h1 className="wordmark inline-block origin-left scale-[1.15] font-pixel text-[clamp(1.4rem,7vw,4.5rem)] leading-none select-none">
+          {/* The size lives in the clamp, not in a transform. A scale() would
+              paint larger glyphs without growing the layout box, so the hero
+              would under-report its own height and the mark could ride over
+              the terminal below it. */}
+          <h1 className="wordmark inline-block font-pixel text-[clamp(1.6rem,8vw,5.2rem)] leading-none select-none">
             <span className="text-poke-yellow">Poké</span>
             <span className="text-white">Cipher</span>
           </h1>
