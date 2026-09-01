@@ -48,11 +48,11 @@ export default function Page() {
   const [copied, setCopied] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [knownNames, setKnownNames] = useState<Set<string>>(new Set())
-  // Whether the vocabulary request has settled, either way. An empty dex and a
-  // dex that has not arrived yet both read as "not ciphertext", so without this
-  // the two are indistinguishable and the keyboard shortcut cannot tell a
-  // genuine encode from a decode it is too early to recognise.
-  const [gateSettled, setGateSettled] = useState(false)
+  // Whether the vocabulary actually arrived. Only a loaded dex can tell
+  // ciphertext from plain text, so only a loaded dex may drive the shortcut's
+  // choice of mode. Failure counts as not ready: guessing wrong there means
+  // silently encoding the ciphertext the user meant to decode.
+  const [gateReady, setGateReady] = useState(false)
 
   // The decode gate needs the Pokedex vocabulary, which lives in Python. Fetched
   // once per mount rather than hardcoded, so the dex stays the single source of
@@ -61,13 +61,12 @@ export default function Page() {
     let cancelled = false
     fetchKnownNames()
       .then((names) => {
-        if (!cancelled) setKnownNames(names)
+        if (cancelled) return
+        setKnownNames(names)
+        setGateReady(true)
       })
       .catch((err) => {
         console.error("Failed to fetch Pokedex names for decode gate:", err)
-      })
-      .finally(() => {
-        if (!cancelled) setGateSettled(true)
       })
     return () => {
       cancelled = true
@@ -139,6 +138,9 @@ export default function Page() {
       setError("Could not copy: this browser blocked clipboard access.")
       return
     }
+    // A retry that works clears the earlier complaint, so the page cannot show
+    // "Copied!" above an alert still saying the clipboard was blocked.
+    setError(null)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
@@ -176,11 +178,12 @@ export default function Page() {
                 event.preventDefault()
                 if (canDecode) {
                   run("decode")
-                } else if (hasInput && gateSettled) {
-                  // Wait for the gate before falling back to encode: until the
-                  // dex lands, pasted ciphertext looks like plain text, and
-                  // encoding it is the one wrong answer the user cannot undo
-                  // by looking at the output.
+                } else if (hasInput && gateReady) {
+                  // Only guess the mode once the dex is loaded. Without it,
+                  // pasted ciphertext reads as plain text and encoding it is
+                  // the one wrong answer the user cannot spot in the output.
+                  // If the dex never loads the shortcut stays quiet; the
+                  // buttons still work and say why.
                   run("encode")
                 }
               }
