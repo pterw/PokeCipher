@@ -14,8 +14,10 @@ export const bitButtonVariants = cva(
           "bg-secondary text-foreground hover:bg-[#346b34] hover:text-[#f2efe6]",
         outline:
           "bg-[#17481d] text-foreground hover:bg-secondary hover:text-[#f2efe6]",
+        // Ghost has no plate of its own, so a hover background reads as a bare
+        // square block against the page. Shift the label colour instead.
         ghost:
-          "bg-transparent text-foreground hover:bg-secondary",
+          "bg-transparent text-foreground hover:text-poke-yellow",
       },
       size: {
         default: "px-2.5 sm:px-3.5 py-1.5 h-9 text-[10px] sm:text-[11px]",

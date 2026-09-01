@@ -59,7 +59,10 @@ export const BitTextarea = React.forwardRef<
       <div className="relative mx-1.5 my-1.5">
         <div
           className={cn(
-            "relative p-0!",
+            // The field itself clears its outline, so focus has to be drawn
+            // here or keyboard users get no indicator at all. Same ring the
+            // buttons use, square because the system has no radius.
+            "relative p-0! focus-within:ring-2 focus-within:ring-primary",
             variant === "void" ? "bg-terminal-void text-foreground" : "bg-input text-foreground",
             font === "retro" && "retro"
           )}

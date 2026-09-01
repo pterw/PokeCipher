@@ -161,14 +161,14 @@ export function CliHero() {
           />
         ))}
       </div>
-      {/* Smooth gradient overlay starting at 25% and grounding into solid background at the bottom */}
+      {/* Smooth gradient overlay starting at 30% and grounding into solid background at the bottom */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
           background:
             "linear-gradient(to bottom, " +
-            "rgba(15,56,15,0) 0%, rgba(15,56,15,0) 25%, rgba(15,56,15,0.15) 45%, rgba(15,56,15,0.45) 68%, rgba(15,56,15,0.8) 86%, rgba(15,56,15,0.96) 95%, #0f380f 100%)",
+            "rgba(15,56,15,0) 0%, rgba(15,56,15,0) 30%, rgba(15,56,15,0.15) 50%, rgba(15,56,15,0.45) 73%, rgba(15,56,15,0.8) 91%, rgba(15,56,15,0.96) 98%, #0f380f 100%)",
         }}
       />
 

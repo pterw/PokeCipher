@@ -64,7 +64,7 @@ export default function Advanced1({
                 {title}
               </CardTitle>
             </div>
-            <span className="font-terminal text-xs text-muted-foreground select-none tracking-wider">
+            <span className="font-terminal text-xs text-foreground select-none tracking-wider">
               [TTY1 &bull; 8-BIT]
             </span>
           </div>
