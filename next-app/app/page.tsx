@@ -12,6 +12,7 @@ import { splitMarkers } from "@/lib/markers"
 import {
   MAX_TEXT_CHARS,
   PokeCipherError,
+  countKnownNames,
   decodeText,
   encodeText,
   fetchKnownNames,
@@ -39,7 +40,10 @@ export default function Page() {
   const [result, setResult] = useState("")
   const [mode, setMode] = useState<Mode>("encode")
   const [showSprites, setShowSprites] = useState(true)
-  const [busy, setBusy] = useState(false)
+  // Which operation is in flight, not merely that one is: the progress label
+  // has to name the button the user actually pressed, and `mode` cannot do that
+  // job because it only records the last operation that finished.
+  const [pending, setPending] = useState<Mode | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -65,6 +69,8 @@ export default function Page() {
   const canDecode = looksLikeCiphertext(input, knownNames)
   const hasInput = input.trim().length > 0
   const tooLong = !isWithinLimit(input)
+  const busy = pending !== null
+  const recognised = countKnownNames(input, knownNames)
 
   async function run(targetMode: Mode) {
     if (!hasInput) {
@@ -77,7 +83,7 @@ export default function Page() {
     }
     if (busy) return
     setError(null)
-    setBusy(true)
+    setPending(targetMode)
     try {
       if (targetMode === "encode") {
         const text = await encodeText(input)
@@ -95,7 +101,7 @@ export default function Page() {
         setError("Could not reach the cipher service.")
       }
     } finally {
-      setBusy(false)
+      setPending(null)
     }
   }
 
@@ -120,11 +126,13 @@ export default function Page() {
     try {
       await navigator.clipboard.writeText(result)
     } catch {
-      // Fallback if clipboard API is restricted in headless context
-    } finally {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      // Say so rather than confirming a copy that did not happen: the API is
+      // unavailable over plain HTTP and in some embedded browsers.
+      setError("Could not copy: this browser blocked clipboard access.")
+      return
     }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   const markerKinds = new Set(
@@ -178,14 +186,21 @@ export default function Page() {
               onClick={() => run("encode")}
               disabled={busy || !hasInput}
             >
-              {busy && mode === "encode" ? "Encoding..." : "Encode"}
+              {pending === "encode" ? "Encoding..." : "Encode"}
             </BitButton>
+            {/*
+              aria-disabled rather than disabled: the control keeps its place in
+              the tab order and stays announced, so a keyboard or screen-reader
+              user can find it and read why it is unavailable, instead of it
+              silently vanishing from the page.
+            */}
             <BitButton
               variant="secondary"
               onClick={() => canDecode && run("decode")}
-              disabled={!canDecode || busy}
+              aria-disabled={!canDecode || busy}
+              className={cn((!canDecode || busy) && "cursor-not-allowed opacity-40")}
             >
-              {busy && mode === "decode" ? "Decoding..." : "Decode"}
+              {pending === "decode" ? "Decoding..." : "Decode"}
             </BitButton>
             <BitButton
               variant="outline"
@@ -226,6 +241,18 @@ export default function Page() {
             </span>
           </div>
         </section>
+
+        {/*
+          Persistent status, not a hover tooltip: it explains why decoding is
+          shut without waiting for the user to go looking for an explanation.
+        */}
+        <p className="font-terminal text-lg text-foreground" aria-live="polite">
+          {!hasInput
+            ? "Type text to encode, or paste Pokemon names to decode."
+            : canDecode
+              ? `${recognised} Pokemon ${recognised === 1 ? "name" : "names"} recognised.`
+              : "Not Pokemon names, so decoding is off. Encode instead."}
+        </p>
 
         {error ? (
           <p className="font-terminal text-lg text-marker-mismatch" role="alert">

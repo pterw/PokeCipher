@@ -144,8 +144,16 @@ function BufferCursor() {
 export function CliHero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Backdrop: horizontal bands sliding past each other. */}
-      <div aria-hidden className="absolute inset-0 overflow-hidden">
+      {/* Backdrop: horizontal bands sliding past each other.
+
+          The tile is a ~60KB data URI. Held once here as a custom property and
+          inherited by every band, it is serialised into the HTML a single time
+          instead of once per band. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 overflow-hidden"
+        style={{ "--hero-tile": TILE } as React.CSSProperties}
+      >
         {Array.from({ length: BANDS }, (_, band) => (
           <div
             key={band}
@@ -153,7 +161,7 @@ export function CliHero() {
             style={{
               top: `${band * ROWS * CELL}px`,
               height: `${ROWS * CELL}px`,
-              backgroundImage: TILE,
+              backgroundImage: "var(--hero-tile)",
               backgroundSize: `${COLS * CELL}px ${ROWS * CELL}px`,
               animationDuration: `${160 + band * 30}s`,
               imageRendering: "pixelated",
