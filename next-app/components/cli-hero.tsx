@@ -180,7 +180,11 @@ export function CliHero() {
         }}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-8 pb-8 sm:pt-10 sm:pb-12">
+      {/* The bottom padding is smaller than the top on purpose. The band the eye
+          reads below the terminal also carries the next section's heading slack
+          (~14px), so equal padding renders as an unequal gap. These values were
+          solved by measuring both bands, not by matching the numbers. */}
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-8 pb-4 sm:pt-10 sm:pb-5">
         <header className="overflow-visible">
           <h1 className="wordmark inline-block origin-left scale-[1.15] font-pixel text-[clamp(1.4rem,7vw,4.5rem)] leading-none select-none">
             <span className="text-poke-yellow">Poké</span>
