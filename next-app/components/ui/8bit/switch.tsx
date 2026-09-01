@@ -13,7 +13,10 @@ function Switch({
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer items-center p-[2px] border border-[#000000] bg-input shadow-[2px_2px_0px_#000000] transition-colors outline-none data-[state=checked]:bg-poke-yellow data-[state=unchecked]:bg-input disabled:cursor-not-allowed disabled:opacity-40",
+        // The 2px black shadow is the pixel bevel and is always painted, so it
+        // cannot double as a focus signal. Focus needs its own ring - the one
+        // the buttons and the textarea already use.
+        "relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer items-center p-[2px] border border-[#000000] bg-input shadow-[2px_2px_0px_#000000] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=checked]:bg-poke-yellow data-[state=unchecked]:bg-input disabled:cursor-not-allowed disabled:opacity-40",
         className
       )}
       {...props}
