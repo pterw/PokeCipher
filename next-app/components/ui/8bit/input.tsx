@@ -30,7 +30,10 @@ export const BitInput = React.forwardRef<HTMLInputElement, BitInputProps>(
       <div className="relative mx-1.5 my-1.5">
         <div
           className={cn(
-            "relative p-0!",
+            // The field clears its own outline, so focus has to be drawn here
+            // or keyboard users get no indicator. Same ring the buttons, the
+            // textarea and the switch use.
+            "relative p-0! focus-within:ring-2 focus-within:ring-primary",
             variant === "void" ? "bg-terminal-void text-foreground" : "bg-input text-foreground",
             font === "retro" && "retro"
           )}
