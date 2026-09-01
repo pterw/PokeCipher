@@ -6,7 +6,7 @@ import { CliHero } from "@/components/cli-hero"
 import { PokemonToken } from "@/components/pokemon-token"
 import { BitButton } from "@/components/ui/8bit/button"
 import { BitCard } from "@/components/ui/8bit/card"
-import { BitCheckbox } from "@/components/ui/8bit/checkbox"
+import { Switch as BitSwitch } from "@/components/ui/8bit/switch"
 import { BitTextarea } from "@/components/ui/8bit/textarea"
 import { splitMarkers } from "@/lib/markers"
 import {
@@ -40,9 +40,19 @@ export default function Page() {
   const [result, setResult] = useState("")
   const [mode, setMode] = useState<Mode>("encode")
   const [showSprites, setShowSprites] = useState(true)
-  const [busy, setBusy] = useState(false)
+  // Which operation is in flight, not merely that one is: the progress label
+  // has to name the button the user actually pressed, and `mode` cannot do that
+  // job because it only records the last operation that finished.
+  const [pending, setPending] = useState<Mode | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [knownNames, setKnownNames] = useState<Set<string>>(new Set())
+  // Whether the vocabulary actually arrived. Only a loaded dex can tell
+  // ciphertext from plain text, so only a loaded dex may drive the shortcut's
+  // choice of mode. Failure counts as not ready: guessing wrong there means
+  // silently encoding the ciphertext the user meant to decode.
+  const [gateReady, setGateReady] = useState(false)
 
   // The decode gate needs the Pokedex vocabulary, which lives in Python. Fetched
   // once per mount rather than hardcoded, so the dex stays the single source of
@@ -51,7 +61,9 @@ export default function Page() {
     let cancelled = false
     fetchKnownNames()
       .then((names) => {
-        if (!cancelled) setKnownNames(names)
+        if (cancelled) return
+        setKnownNames(names)
+        setGateReady(true)
       })
       .catch((err) => {
         console.error("Failed to fetch Pokedex names for decode gate:", err)
@@ -62,9 +74,10 @@ export default function Page() {
   }, [])
 
   const canDecode = looksLikeCiphertext(input, knownNames)
-  const recognised = canDecode ? countKnownNames(input, knownNames) : 0
   const hasInput = input.trim().length > 0
   const tooLong = !isWithinLimit(input)
+  const busy = pending !== null
+  const recognised = countKnownNames(input, knownNames)
 
   async function run(targetMode: Mode) {
     if (!hasInput) {
@@ -77,7 +90,7 @@ export default function Page() {
     }
     if (busy) return
     setError(null)
-    setBusy(true)
+    setPending(targetMode)
     try {
       if (targetMode === "encode") {
         const text = await encodeText(input)
@@ -95,7 +108,7 @@ export default function Page() {
         setError("Could not reach the cipher service.")
       }
     } finally {
-      setBusy(false)
+      setPending(null)
     }
   }
 
@@ -103,6 +116,8 @@ export default function Page() {
     setInput("")
     setResult("")
     setError(null)
+    setClearing(true)
+    setTimeout(() => setClearing(false), 200)
   }
 
   function swap() {
@@ -115,7 +130,19 @@ export default function Page() {
 
   async function copy() {
     if (!result) return
-    await navigator.clipboard.writeText(result)
+    try {
+      await navigator.clipboard.writeText(result)
+    } catch {
+      // Say so rather than confirming a copy that did not happen: the API is
+      // unavailable over plain HTTP and in some embedded browsers.
+      setError("Could not copy: this browser blocked clipboard access.")
+      return
+    }
+    // A retry that works clears the earlier complaint, so the page cannot show
+    // "Copied!" above an alert still saying the clipboard was blocked.
+    setError(null)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   const markerKinds = new Set(
@@ -125,81 +152,116 @@ export default function Page() {
   return (
     <>
       <CliHero />
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-6 pt-0 pb-10">
-        <header>
-          <h2 className="font-pixel text-lg text-foreground sm:text-xl">Encode &amp; Decode</h2>
-          <p className="mt-0.5 text-base text-foreground sm:text-lg">
-            Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
-          </p>
+      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-2.5 px-4 sm:px-6 pt-0 pb-8">
+        <header className="mt-2 mb-1 flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+          <div>
+            <h2 className="font-pixel text-xl tracking-[0.02em] text-foreground [text-shadow:3px_3px_0_#000000]">
+              Encode &amp; Decode
+            </h2>
+            <p className="mt-1 font-terminal text-lg leading-[1.35] text-muted-foreground">
+              Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
+            </p>
+          </div>
+          <span className={cn("font-terminal text-base select-none shrink-0", tooLong ? "text-marker-mismatch" : "text-muted-foreground")}>
+            {input.length} / {MAX_TEXT_CHARS}
+          </span>
         </header>
 
         <section className="flex flex-col gap-1.5">
-          <label htmlFor="input" className="text-sm uppercase tracking-wide text-foreground">
-            Input
-          </label>
           <BitTextarea
             id="input"
+            aria-label="Message to encode or Pokemon names to decode"
             value={input}
             onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                event.preventDefault()
+                if (canDecode) {
+                  run("decode")
+                } else if (hasInput && gateReady) {
+                  // Only guess the mode once the dex is loaded. Without it,
+                  // pasted ciphertext reads as plain text and encoding it is
+                  // the one wrong answer the user cannot spot in the output.
+                  // If the dex never loads the shortcut stays quiet; the
+                  // buttons still work and say why.
+                  run("encode")
+                }
+              }
+            }}
             spellCheck={false}
-            placeholder="Type a message, or paste Pokemon names to decode."
+            placeholder="Type a message to encode, or paste Pokemon names to decode."
           />
-          <div className="flex items-center justify-between text-sm">
-            <span className={tooLong ? "text-marker-mismatch" : "text-foreground"}>
-              {input.length} / {MAX_TEXT_CHARS}
-            </span>
-            <label
-              htmlFor="show-sprites"
-              className="flex cursor-pointer items-center gap-2 text-foreground select-none font-terminal text-lg"
+        </section>
+
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-0.5">
+          {/* Action buttons (Encode, Decode, Swap, Copy, Clear) */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <BitButton
+              variant="yellow"
+              onClick={() => run("encode")}
+              disabled={busy || !hasInput}
             >
-              <BitCheckbox
-                id="show-sprites"
-                checked={showSprites}
-                onChange={(event) => setShowSprites(event.target.checked)}
-              />
-              <span>Show sprites</span>
-            </label>
+              {pending === "encode" ? "Encoding..." : "Encode"}
+            </BitButton>
+            {/*
+              aria-disabled rather than disabled: the control keeps its place in
+              the tab order and stays announced, so a keyboard or screen-reader
+              user can find it and read why it is unavailable, instead of it
+              silently vanishing from the page.
+            */}
+            <BitButton
+              variant="secondary"
+              onClick={() => canDecode && run("decode")}
+              aria-disabled={!canDecode || busy}
+              className={cn((!canDecode || busy) && "cursor-not-allowed opacity-40")}
+            >
+              {pending === "decode" ? "Decoding..." : "Decode"}
+            </BitButton>
+            <BitButton
+              variant="outline"
+              onClick={swap}
+              disabled={!result}
+            >
+              Swap
+            </BitButton>
+            <BitButton
+              variant="outline"
+              onClick={copy}
+              disabled={!result}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </BitButton>
+            <BitButton
+              variant="ghost"
+              onClick={clearAll}
+              disabled={!input && !result && !error}
+            >
+              Clear
+            </BitButton>
+          </div>
+
+          {/* View toggle (Names <-> Sprites) */}
+          <div className="flex items-center justify-end sm:justify-start gap-2 self-end sm:self-center select-none font-pixel text-xs shrink-0 py-0.5">
+            <span className={cn("transition-colors", !showSprites ? "text-poke-yellow" : "text-muted-foreground")}>
+              Names
+            </span>
+            <BitSwitch
+              id="view-toggle"
+              checked={showSprites}
+              onCheckedChange={setShowSprites}
+              aria-label="Toggle sprites view"
+            />
+            <span className={cn("transition-colors", showSprites ? "text-poke-yellow" : "text-muted-foreground")}>
+              Sprites
+            </span>
           </div>
         </section>
 
-        <section className="flex flex-wrap items-center gap-3">
-          <BitButton
-            variant="yellow"
-            onClick={() => run("encode")}
-            disabled={busy}
-          >
-            {busy ? "Working..." : "Encode to Pokemon"}
-          </BitButton>
-          {/*
-            aria-disabled rather than disabled: the control keeps its place in the
-            tab order and stays announced, so a keyboard or screen-reader user can
-            find it and read why it is unavailable, instead of it silently
-            vanishing from the page.
-          */}
-          <BitButton
-            variant="secondary"
-            onClick={() => canDecode && run("decode")}
-            aria-disabled={!canDecode || busy}
-            className={cn(!canDecode && "cursor-not-allowed opacity-40")}
-          >
-            Decode to text
-          </BitButton>
-          <BitButton variant="outline" onClick={swap} disabled={!result}>
-            Swap
-          </BitButton>
-          <BitButton variant="outline" onClick={copy} disabled={!result}>
-            Copy
-          </BitButton>
-          <BitButton variant="ghost" onClick={clearAll}>
-            Clear
-          </BitButton>
-        </section>
-
         {/*
-          Persistent status, not a hover tooltip: it explains why decoding is shut
-          without waiting for the user to go looking for an explanation.
+          Persistent status, not a hover tooltip: it explains why decoding is
+          shut without waiting for the user to go looking for an explanation.
         */}
-        <p className="text-sm text-foreground" aria-live="polite">
+        <p className="font-terminal text-lg text-foreground" aria-live="polite">
           {!hasInput
             ? "Type text to encode, or paste Pokemon names to decode."
             : canDecode
@@ -208,34 +270,34 @@ export default function Page() {
         </p>
 
         {error ? (
-          <p
-            role="alert"
-            className="border border-marker-mismatch p-3 text-lg text-marker-mismatch"
-          >
+          <p className="font-terminal text-lg text-marker-mismatch" role="alert">
             {error}
           </p>
         ) : null}
 
-        {result ? (
-          <section className="flex flex-col gap-2" aria-live="polite">
-            <h2 className="text-sm uppercase tracking-wide text-foreground">
-              {mode === "encode" ? "Pokemon" : "Decoded text"}
-            </h2>
-            <BitCard className="min-h-24 p-4 font-mono text-lg text-card-foreground">
-              {mode === "encode" ? (
+        <section className="mt-1 flex flex-col gap-1" aria-live="polite">
+          <BitCard
+            variant="void"
+            className={cn(
+              "min-h-24 p-4 font-terminal text-xl text-foreground",
+              clearing && "animate-crt-clear"
+            )}
+          >
+            {result ? (
+              mode === "encode" ? (
                 showSprites ? (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     {result.split(" ").map((name, index) => (
                       <PokemonToken key={index} name={name} showSprites={true} />
                     ))}
                   </div>
                 ) : (
-                  <p className="leading-relaxed text-foreground select-all break-words">
+                  <p className="leading-relaxed text-foreground select-all break-words font-terminal text-xl">
                     {result}
                   </p>
                 )
               ) : (
-                <div className="leading-relaxed select-all break-words">
+                <div className="leading-relaxed select-all break-words font-terminal text-xl">
                   {splitMarkers(result).map((piece, index) => (
                     <span
                       key={index}
@@ -248,23 +310,23 @@ export default function Page() {
                     </span>
                   ))}
                 </div>
-              )}
-            </BitCard>
-            {/*
-              Only describe markers actually on screen. The old fixed legend named
-              amber and red even when every marker was blue, so the one piece of
-              guidance shown could contradict the output it was explaining.
-            */}
-            {mode === "decode" &&
-              [...markerKinds]
-                .filter((kind) => kind in MARKER_LEGEND)
-                .map((kind) => (
-                  <p key={kind} className="text-sm text-foreground">
-                    {MARKER_LEGEND[kind]}
-                  </p>
-                ))}
-          </section>
-        ) : null}
+              )
+            ) : (
+              <p className="font-terminal text-xl text-muted-foreground select-none">
+                {"Encoded Pokémon or decoded plaintext will appear here..."}
+              </p>
+            )}
+          </BitCard>
+          {result &&
+            mode === "decode" &&
+            [...markerKinds]
+              .filter((kind) => kind in MARKER_LEGEND)
+              .map((kind) => (
+                <p key={kind} className="font-terminal text-base text-muted-foreground">
+                  {MARKER_LEGEND[kind]}
+                </p>
+              ))}
+        </section>
       </main>
     </>
   )

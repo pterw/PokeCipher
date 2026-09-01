@@ -3,7 +3,7 @@ import { type VariantProps, cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import "@/components/ui/8bit/styles/retro.css"
 
-export const textareaVariants = cva("", {
+export const inputVariants = cva("", {
   variants: {
     font: {
       normal: "",
@@ -20,60 +20,28 @@ export const textareaVariants = cva("", {
   },
 })
 
-export interface BitTextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-    VariantProps<typeof textareaVariants> {
-  autoGrow?: boolean
-  minHeight?: number
-}
+export interface BitInputProps
+  extends React.InputHTMLAttributes<HTMLInputElement>,
+    VariantProps<typeof inputVariants> {}
 
-export const BitTextarea = React.forwardRef<
-  HTMLTextAreaElement,
-  BitTextareaProps
->(
-  (
-    {
-      className,
-      font,
-      variant,
-      autoGrow = true,
-      minHeight = 96,
-      value,
-      onChange,
-      ...props
-    },
-    ref
-  ) => {
-    const internalRef = React.useRef<HTMLTextAreaElement>(null)
-    const combinedRef = (ref || internalRef) as React.MutableRefObject<HTMLTextAreaElement | null>
-
-    React.useEffect(() => {
-      if (!autoGrow) return
-      const el = combinedRef.current
-      if (!el) return
-      el.style.height = "auto"
-      el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`
-    }, [value, autoGrow, minHeight, combinedRef])
-
+export const BitInput = React.forwardRef<HTMLInputElement, BitInputProps>(
+  ({ className, font, variant, ...props }, ref) => {
     return (
       <div className="relative mx-1.5 my-1.5">
         <div
           className={cn(
-            // The field itself clears its outline, so focus has to be drawn
-            // here or keyboard users get no indicator at all. Same ring the
-            // buttons use, square because the system has no radius.
+            // The field clears its own outline, so focus has to be drawn here
+            // or keyboard users get no indicator. Same ring the buttons, the
+            // textarea and the switch use.
             "relative p-0! focus-within:ring-2 focus-within:ring-primary",
             variant === "void" ? "bg-terminal-void text-foreground" : "bg-input text-foreground",
             font === "retro" && "retro"
           )}
         >
-          <textarea
-            ref={combinedRef}
-            value={value}
-            onChange={onChange}
-            style={{ minHeight: `${minHeight}px` }}
+          <input
+            ref={ref}
             className={cn(
-              "w-full resize-none overflow-hidden bg-transparent p-4 font-terminal text-xl text-foreground placeholder:text-muted-foreground focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              "w-full bg-transparent p-3 font-terminal text-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none",
               className
             )}
             {...props}
@@ -101,5 +69,6 @@ export const BitTextarea = React.forwardRef<
   }
 )
 
-BitTextarea.displayName = "BitTextarea"
-export { BitTextarea as Textarea }
+BitInput.displayName = "BitInput"
+export { BitInput as Input }
+

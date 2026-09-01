@@ -67,9 +67,18 @@ local_build.txt
 BOOTSTRAP.md
 HANDOFF.md
 # Stray Turborepo scaffold from an early "shadcn in a monorepo" experiment that
-# predates next-app/. It carries its own .git, so without this it stages as a
-# gitlink. Safe to delete from disk; next-app/ is the real frontend.
+# predates next-app/. Deleted from disk on 2026-09-01; the rule stays so a
+# re-scaffold does not stage as a gitlink (it carries its own .git).
+# next-app/ is the real frontend.
 shadcn-test/
 
 .vercel
 .env*
+
+# --- graphify ---
+# Generated knowledge graph (graph.json/graph.html/report + caches). Rebuildable.
+graphify-out/
+
+# --- Local agent tooling ---
+# MCP server wiring is per-machine, not part of the project.
+.mcp.json

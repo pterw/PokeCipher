@@ -50,7 +50,7 @@ export function PokemonToken({ name, showSprites }: PokemonTokenProps) {
     return (
       <span
         className={cn(
-          "inline-block border border-border bg-card px-2 py-0.5 font-mono text-sm leading-relaxed text-foreground transition-colors hover:border-poke-yellow"
+          "inline-block border border-border bg-card px-2 py-0.5 font-mono text-sm leading-relaxed text-foreground transition-colors hover:border-primary"
         )}
         title={name}
       >

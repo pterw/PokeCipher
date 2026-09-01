@@ -4,24 +4,26 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 export const bitButtonVariants = cva(
-  "relative inline-flex items-center justify-center font-pixel text-xs tracking-wider uppercase select-none transition-transform active:translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-poke-yellow disabled:opacity-40 disabled:pointer-events-none",
+  "relative inline-flex items-center justify-center font-pixel text-xs tracking-wider uppercase select-none transition-transform active:translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:pointer-events-none",
   {
     variants: {
       variant: {
         yellow:
           "bg-poke-yellow text-[#0f380f] hover:brightness-105",
         secondary:
-          "bg-secondary text-foreground hover:bg-muted",
+          "bg-secondary text-foreground hover:bg-[#346b34] hover:text-[#f2efe6]",
         outline:
-          "bg-card text-foreground hover:bg-secondary hover:text-poke-yellow",
+          "bg-[#17481d] text-foreground hover:bg-secondary hover:text-[#f2efe6]",
+        // Ghost has no plate of its own, so a hover background reads as a bare
+        // square block against the page. Shift the label colour instead.
         ghost:
-          "bg-transparent text-foreground hover:bg-secondary hover:text-poke-yellow",
+          "bg-transparent text-foreground hover:text-poke-yellow",
       },
       size: {
-        default: "px-4 py-2.5 h-11",
-        sm: "px-3 py-1.5 h-9 text-[10px]",
-        lg: "px-6 py-3 h-13 text-sm",
-        icon: "h-10 w-10 p-0",
+        default: "px-2.5 sm:px-3.5 py-1.5 h-9 text-[10px] sm:text-[11px]",
+        sm: "px-2 py-1 h-7.5 text-[9px]",
+        lg: "px-4 sm:px-5 py-2.5 h-11 text-xs",
+        icon: "h-9 w-9 p-0",
       },
     },
     defaultVariants: {
@@ -75,21 +77,22 @@ function ButtonDecorations({
           <span className="absolute bottom-0 left-0 right-0 h-1 bg-black/25" />
           <span className="absolute bottom-1 right-0 w-1 h-2 bg-black/25" />
         </>
-      ) : variant === "secondary" ? (
+      ) : (
         <>
-          <span className="absolute top-0 left-0 right-0 h-1 bg-[#477d47]/60" />
-          <span className="absolute bottom-0 left-0 right-0 h-1 bg-[#071a07]/60" />
+          <span className="absolute top-0 left-0 right-0 h-1 bg-white/20" />
+          <span className="absolute bottom-0 left-0 right-0 h-1 bg-black/40" />
         </>
-      ) : null}
+      )}
     </span>
   )
 }
 
 export const BitButton = React.forwardRef<HTMLButtonElement, BitButtonProps>(
-  ({ className, variant, size, children, ...props }, ref) => {
+  ({ className, variant, size, type = "button", children, ...props }, ref) => {
     return (
       <button
         ref={ref}
+        type={type}
         className={cn(bitButtonVariants({ variant, size, className }), "mx-1 my-1")}
         {...props}
       >

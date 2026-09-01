@@ -218,7 +218,7 @@ Real, verified, and safe to use:
   disambiguates it.
 - Retroactive-resolution example: `Nidoking Geodude Shroomish Nidoking` decodes
   cleanly to `AAAA`, though `Geodude` alone is ambiguous.
-- `Screenshot.png` and `Screenshot_1.png` at the repository root.
+- `Screenshot.png` at the repository root.
 - Test suite: 178 Python tests (250 subtests), 97% statement coverage; 46
   frontend tests. Measured 2026-08-30; these counts drift silently, since
   nothing verifies them against the suite.
