@@ -237,11 +237,13 @@ export function CliHero() {
             </p>
 
             <div className="flex flex-wrap items-center gap-x-2.5 font-terminal text-[20px] sm:text-[22px]">
-              <span>Decode &quot;Slowpoke&quot;</span>
+              <span>Round-trip &quot;Hello World!&quot;</span>
               <span className="font-bold text-poke-yellow">→</span>
-              <span className="font-bold text-marker-ambiguous">[n,o]</span>
+              <span className="font-bold">
+                Hello W<span className="text-marker-ambiguous">[n,o]</span>rld!
+              </span>
               <span className="font-mono text-[14px] sm:text-[16px] text-primary">
-                (Kanto &apos;n&apos; vs Johto &apos;o&apos;)
+                (Slowpoke: Kanto &apos;n&apos; vs Johto &apos;o&apos;)
               </span>
             </div>
 
