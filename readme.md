@@ -145,7 +145,18 @@ decode.
 - **The cipher is not cryptographically secure.** It is a puzzle and a teaching
   tool for substitution ciphers and state tracking, not a way to protect data.
 - Only the first 95 entries of each regional dex are used. Names containing
-  spaces (Mr. Mime, Tapu Koko) cannot be added without changing the delimiter.
+  spaces (Mr. Mime, Tapu Koko) cannot be added without changing the delimiter
+
+## TODO
+
+[ ] Organize root repo (folders, etc.) 
+[ ] Rework mobile UI (tweaks or redesign) 
+[ ] Adresss prior review feedback 
+[ ] Replace screenshot
+[ ] Include README.MD badges 
+[ ] Include social badges on webapp 
+
+More to come. 
 
 ## Project conventions
 
