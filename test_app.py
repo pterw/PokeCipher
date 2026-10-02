@@ -145,5 +145,79 @@ class CorsTests(unittest.TestCase):
         self.assertEqual(response.headers["access-control-allow-origin"], "*")
 
 
+class ContractAndBoundaryTests(unittest.TestCase):
+    """Boundary conditions of the transport contract, not just the happy path."""
+
+    def test_decode_over_the_cap_is_rejected(self) -> None:
+        """The cap applies to decode as well as encode; shared by read_text."""
+        response = client.post("/api/decode", json={"text": "a" * (MAX_TEXT_CHARS + 1)})
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(
+            response.json(), {"error": f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."}
+        )
+
+    def test_body_exactly_at_the_size_limit_is_accepted(self) -> None:
+        """A 32 KiB body is legal; one byte more is not."""
+        prefix = b'{"text": "", "pad": "'
+        suffix = b'"}'
+        pad = b"x" * (32 * 1024 - len(prefix) - len(suffix))
+        body = prefix + pad + suffix
+        self.assertEqual(len(body), 32 * 1024)
+
+        response = client.post("/api/encode", content=body)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"result": ""})
+
+        response = client.post("/api/encode", content=body + b"x")
+        self.assertEqual(response.status_code, 400)
+
+    def test_null_text_is_rejected(self) -> None:
+        """JSON null is not a string."""
+        response = client.post("/api/encode", json={"text": None})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "Field 'text' must be a string."})
+
+    def test_whitespace_only_text_encodes_by_region_cycling(self) -> None:
+        """Spaces are ordinary characters: each occurrence cycles its own region."""
+        response = client.post("/api/encode", json={"text": "  "})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["result"].count(" "), 1)
+
+    def test_decode_whitespace_only_returns_empty(self) -> None:
+        """Ciphertext consisting only of separators decodes to nothing."""
+        response = client.post("/api/decode", json={"text": "   \t \n "})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"result": ""})
+
+    def test_unicode_text_round_trips_through_the_api(self) -> None:
+        """Non-ASCII characters travel as [CHAR:N] tokens and come back intact.
+
+        The decode is deliberately lossy at one position: the Kanto name for
+        'f' is also a Johto name for 'a', and since the earlier 'a' already
+        forces region-1 for its next occurrence, both readings survive to the
+        end. The marker is the cipher working as designed, not a defect.
+        """
+        original = "café ☕ 日本語 😀"
+        encoded = client.post("/api/encode", json={"text": original}).json()["result"]
+        self.assertIn("[CHAR:", encoded)
+
+        decoded = client.post("/api/decode", json={"text": encoded}).json()["result"]
+        self.assertEqual(decoded, "ca[a,f]é ☕ 日本語 😀")
+        # Every non-ASCII character survives verbatim.
+        for char in "é☕日本語😀":
+            with self.subTest(char=char):
+                self.assertIn(char, decoded)
+
+    def test_response_is_json_with_the_documented_keys(self) -> None:
+        """Success carries exactly 'result'; failure carries exactly 'error'."""
+        ok = client.post("/api/encode", json={"text": "Hi"})
+        self.assertEqual(set(ok.json()), {"result"})
+        self.assertIsInstance(ok.json()["result"], str)
+
+        bad = client.post("/api/encode", content=b"not json")
+        self.assertEqual(set(bad.json()), {"error"})
+        self.assertIsInstance(bad.json()["error"], str)
+
+
 if __name__ == "__main__":
     unittest.main()
