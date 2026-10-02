@@ -4,7 +4,9 @@ A retro, Pokédex-themed web app that encrypts text into sequences of Pokémon
 names and decrypts them back again. Built with Next.js and Python, deployed on
 Vercel.
 
-![Screenshot of the app](Screenshot.png)
+![PokéCipher on a laptop: the CLI hero above the encode tool, with "Hello World!" shown as a row of Pokemon sprites](Screenshot.png)
+
+![The same encode on a phone, where the layout stacks and the page scrolls](Screenshot-mobile.png)
 
 ## What the cipher does
 
@@ -152,7 +154,7 @@ decode.
 [ ] Organize root repo (folders, etc.) 
 [ ] Rework mobile UI (tweaks or redesign) 
 [ ] Adresss prior review feedback 
-[ ] Replace screenshot
+[x] Replace screenshot
 [ ] Include README.MD badges 
 [ ] Include social badges on webapp 
 

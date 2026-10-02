@@ -218,10 +218,13 @@ Real, verified, and safe to use:
   disambiguates it.
 - Retroactive-resolution example: `Nidoking Geodude Shroomish Nidoking` decodes
   cleanly to `AAAA`, though `Geodude` alone is ambiguous.
-- `Screenshot.png` at the repository root.
-- Test suite: 178 Python tests (250 subtests), 97% statement coverage; 46
-  frontend tests. Measured 2026-08-30; these counts drift silently, since
-  nothing verifies them against the suite.
+- `Screenshot.png` (laptop, 1440x900) and `Screenshot-mobile.png` (phone,
+  390x844) at the repository root.
+- Test suite: 206 Python tests (7,208 subtests) at 97% statement coverage; 46
+  frontend tests. Measured 2026-10-02; these counts drift silently, since
+  nothing verifies them against the suite. The timing assertions inside the
+  suite are wall-clock based, so a coverage-instrumented run (`pytest --cov`)
+  can trip the slowest one on a loaded machine even though a plain run passes.
 
 No testimonials, users, customers, benchmarks, press, pricing or adoption
 figures exist. Future work must not fabricate any.
