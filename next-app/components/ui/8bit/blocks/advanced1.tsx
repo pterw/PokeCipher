@@ -69,7 +69,7 @@ export default function Advanced1({
             </span>
           </div>
         </CardHeader>
-        <CardContent className="p-3 sm:p-4 bg-terminal-void">
+        <CardContent className="p-3 sm:p-4 short:p-2.5 bg-terminal-void">
           {children ? (
             children
           ) : (

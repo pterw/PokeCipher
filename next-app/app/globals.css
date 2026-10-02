@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Height-aware variants.
+   The page has to fit one viewport on a laptop, and viewport *height* is what
+   that depends on — width alone cannot tell a 1440x900 monitor from a 1440x780
+   window. `short` and `tiny` let the hero shed decorative density as the
+   viewport gets shorter, instead of shrinking type until it stops being
+   readable. Mobile portrait (>= 844px tall) is unaffected. */
+@custom-variant short (@media (max-height: 940px));
+@custom-variant tiny (@media (max-height: 700px));
+
+
 /* Retro Game Boy palette: dark greens, off-white text, hard edges, pixel type.
    Defined once on :root so the look is identical in both colour schemes. */
 :root {

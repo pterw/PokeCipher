@@ -150,15 +150,19 @@ export default function Page() {
   )
 
   return (
-    <>
+    /* min-h-dvh, not vh: on mobile browsers `vh` is the tallest possible
+       viewport (address bar retracted), so a vh-based shell is always taller
+       than what the user can actually see and the last control sits under the
+       chrome. dvh tracks the real, current viewport. */
+    <div className="flex min-h-dvh flex-col">
       <CliHero />
-      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-2.5 px-4 sm:px-6 pt-0 pb-8">
+      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-2 px-4 sm:px-6 pt-0 pb-[clamp(1rem,3vh,2rem)]">
         <header className="mt-2 mb-1 flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
             <h2 className="font-pixel text-xl tracking-[0.02em] text-foreground [text-shadow:3px_3px_0_#000000]">
               Encode &amp; Decode
             </h2>
-            <p className="mt-1 font-terminal text-lg leading-[1.35] text-muted-foreground">
+            <p className="mt-1 font-terminal text-lg leading-[1.35] text-muted-foreground short:text-base">
               Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
             </p>
           </div>
@@ -258,28 +262,34 @@ export default function Page() {
         </section>
 
         {/*
-          Persistent status, not a hover tooltip: it explains why decoding is
-          shut without waiting for the user to go looking for an explanation.
+          The status line and the error line share one reserved slot. The error
+          is conditional, so without the reservation a validation failure would
+          push the result card — and everything after it — down by a line the
+          moment it appears, and back up when it clears. Two lines of slack
+          (status + error) keep the geometry stable; the tool no longer jumps
+          when a message arrives.
         */}
-        <p className="font-terminal text-lg text-foreground" aria-live="polite">
-          {!hasInput
-            ? "Type text to encode, or paste Pokemon names to decode."
-            : canDecode
-              ? `${recognised} Pokemon ${recognised === 1 ? "name" : "names"} recognised.`
-              : "Not Pokemon names, so decoding is off. Encode instead."}
-        </p>
-
-        {error ? (
-          <p className="font-terminal text-lg text-marker-mismatch" role="alert">
-            {error}
+        <div className="flex min-h-[3.25rem] flex-col justify-start gap-0.5 short:min-h-[3rem]">
+          <p className="font-terminal text-lg text-foreground" aria-live="polite">
+            {!hasInput
+              ? "Type text to encode, or paste Pokemon names to decode."
+              : canDecode
+                ? `${recognised} Pokemon ${recognised === 1 ? "name" : "names"} recognised.`
+                : "Not Pokemon names, so decoding is off. Encode instead."}
           </p>
-        ) : null}
+
+          {error ? (
+            <p className="font-terminal text-lg text-marker-mismatch" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
 
         <section className="mt-1 flex flex-col gap-1" aria-live="polite">
           <BitCard
             variant="void"
             className={cn(
-              "min-h-24 p-4 font-terminal text-xl text-foreground",
+              "min-h-20 p-4 font-terminal text-xl text-foreground",
               clearing && "animate-crt-clear"
             )}
           >
@@ -328,6 +338,6 @@ export default function Page() {
               ))}
         </section>
       </main>
-    </>
+    </div>
   )
 }

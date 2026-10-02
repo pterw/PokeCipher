@@ -186,20 +186,20 @@ export function CliHero() {
           measuring both bands; 18 and 26 are off the 4px step because that is
           where the measured delta reaches zero, and the wordmark's size feeds
           into it, so re-measure if the mark changes. */}
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-8 pb-[18px] sm:pt-10 sm:pb-[26px]">
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-[clamp(0.75rem,3.5vh,2rem)] pb-[clamp(0.5rem,2vh,1.25rem)] short:pt-3 short:pb-2.5">
         <header className="overflow-visible">
           {/* The size lives in the clamp, not in a transform. A scale() would
               paint larger glyphs without growing the layout box, so the hero
               would under-report its own height and the mark could ride over
               the terminal below it. */}
-          <h1 className="wordmark inline-block font-pixel text-[clamp(1.6rem,8vw,5.2rem)] leading-none select-none">
+          <h1 className="wordmark inline-block font-pixel text-[clamp(1.6rem,min(8vw,7vh),5.2rem)] leading-none select-none short:text-[clamp(1.4rem,5vh,2.6rem)]">
             <span className="text-poke-yellow">Poké</span>
             <span className="text-white">Cipher</span>
           </h1>
         </header>
 
-        <Advanced1 title="POKEDEX.EXE" className="mt-6 sm:mt-8">
-          <div className="flex flex-col gap-1.5 font-terminal text-[20px] leading-snug text-foreground sm:text-[22px] [scrollbar-width:none]">
+        <Advanced1 title="POKEDEX.EXE" className="mt-[clamp(0.5rem,2.5vh,1.5rem)] short:mt-2">
+          <div className="flex flex-col gap-1.5 short:gap-1 font-terminal text-[20px] leading-snug text-foreground short:text-[17px] tiny:text-[16px] sm:text-[22px] [scrollbar-width:none]">
             <p>
               <span className="text-poke-yellow font-normal">$ </span>
               <span className="text-foreground">help --cipher</span>
@@ -209,7 +209,7 @@ export function CliHero() {
               A cipher <span className="font-semibold text-destructive">transforms</span> text into secret code. PokéCipher encodes characters into Pokémon names drawn from three regional Pokédexes.
             </p>
 
-            <div className="my-1 flex flex-col font-mono text-[14px] sm:text-[16px] text-primary">
+            <div className="my-1 flex flex-col font-mono text-[14px] sm:text-[16px] short:text-[13px] text-primary">
               <p>index &nbsp;= ord(char) - 32</p>
               <p>
                 region = occurrence % 3 &nbsp; &nbsp;[
@@ -223,7 +223,7 @@ export function CliHero() {
               Each repeated character advances to the next region:
             </p>
 
-            <div className="font-terminal text-[20px] sm:text-[22px]">
+            <div className="font-terminal text-[20px] sm:text-[22px] short:hidden">
               <div className="flex flex-wrap items-start gap-x-2.5">
                 <span>&quot;Hello&quot;</span>
                 <span className="font-bold text-poke-yellow">→</span>
@@ -250,11 +250,11 @@ export function CliHero() {
               </div>
             </div>
 
-            <p className="text-foreground">
+            <p className="text-foreground tiny:hidden">
               Because Pokémon names repeat across regions, decoding is intentionally ambiguous:
             </p>
 
-            <div className="flex flex-wrap items-center gap-x-2.5 font-terminal text-[20px] sm:text-[22px]">
+            <div className="flex flex-wrap items-center gap-x-2.5 font-terminal text-[20px] sm:text-[22px] tiny:hidden">
               <span>Round-trip &quot;Hello World!&quot;</span>
               <span className="font-bold text-poke-yellow">→</span>
               <span className="font-bold">
