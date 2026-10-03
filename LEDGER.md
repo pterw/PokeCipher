@@ -337,8 +337,11 @@ allows zero new issues, so warnings that are right in context still fail it.
 **Left alone deliberately.** `AGENTS.md` says to change behaviour only when asked
 and never to reformat files that did not otherwise need changing. `2201ce9` is what
 pins the `MAX_DECODE_BRANCHES` limitation recorded as F3 above, so rewriting it to
-satisfy a linter is the wrong trade. Two real options, and both are the owner's
-call: silence those three warnings in that file, or relax Codacy's gate for it.
+satisfy a linter is the wrong trade.
+
+**Decided: waived.** The repository owner reviewed the three findings and waived
+them on 2026-10-03 — they are appropriate for a test file, not issues. Neither
+option was taken; the gate is expected to stay red on this PR by decision.
 
 
 ## Commits
@@ -372,8 +375,9 @@ sequential command. The SHAs above are the re-made ones.
    source art, so the ICO quantises it onto the Game Boy ramp. That is what puts
    it in the app's palette, and it is also why it will never follow the page's
    theme toggle.
-4. **The Codacy gate needs a decision.** It fails on three warnings in
-   `test_cipher_invariants.py`, a file inherited from the nine unpushed commits
-   and untouched by this pass. Either silence those three warnings there, or relax
-   the gate for that file. Both are the owner's call and neither was taken.
+4. **The Codacy gate — decided: waived, not an issue.** It failed on three
+   warnings in `test_cipher_invariants.py`, a file inherited from the nine unpushed
+   commits and untouched by this pass. The owner reviewed them and waived them on
+   2026-10-03. No change was made to the file or the gate; the red check on PR #16
+   is the recorded outcome, not an open defect.
 
