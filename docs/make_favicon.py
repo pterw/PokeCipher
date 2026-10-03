@@ -12,9 +12,14 @@ finds in `app/` and browsers choose between them inconsistently:
     next-app/app/favicon.ico raster, one fixed scheme
 
 Shipping only one leaves the other stale, and a stale `favicon.ico` still wins in
-the browsers that prefer it. So both come from the same sprite, the same
-placement and the same ring geometry, and this script is the single source of
-truth for the mark. Editing the generated files by hand is how the two drift.
+the browsers that prefer it. So both come from the same runs, the same placement
+and the same ring geometry, and editing either by hand is how the two drift.
+
+The ICO is rasterised from `icon.svg` rather than by re-rendering the sprite a
+second time, so the two formats cannot disagree about the mark. That is also the
+only route a fresh checkout has: the Generation 1 sprite is Nintendo's art and is
+deliberately not committed, so `favicon.ico` is rebuilt from the SVG. A sprite
+path is still accepted, for regenerating both files from a new download.
 
 Why the SVG is rectangles rather than an embedded image: a favicon must be
 self-contained, so referencing the PokémonDB CDN would make the tab icon depend
@@ -36,12 +41,14 @@ In neither format will changing the app's own theme recolour the tab. That is a
 platform limitation, not something this file can work around.
 
 Usage:
-    python docs/make_favicon.py path/to/pikachu.png
+    python docs/make_favicon.py              # rebuild favicon.ico from icon.svg
+    python docs/make_favicon.py sprite.png   # rebuild both, from a sprite
 """
 
 from __future__ import annotations
 
 import math
+import re
 import struct
 import sys
 import zlib
@@ -101,10 +108,34 @@ DMG_RAMP = (
     (0x9B, 0xBC, 0x0F),
 )
 
+# The shades the sprite itself may paint with. `DMG_RAMP[0]` is excluded because
+# it *is* `DISC`: the sprite sits on top of that field, so any ink snapped to the
+# field's shade is invisible. Those are not stray pixels — Pikachu's outline, ear
+# tips and eye pupils are the sprite's darkest ones. Quantising them onto the
+# field painted the character's contour in the background colour, which is what
+# left the ICO reading as a pale blob while the vector SVG read as Pikachu. The
+# sprite therefore gets the three lighter shades and the field keeps the darkest.
+SPRITE_RAMP = DMG_RAMP[1:]
+
 # The raster mark's field and edge. Neither can invert, so together they bracket
 # the toolbar: a dark disc reads on a light toolbar, a light ring on a dark one.
 DISC = DMG_RAMP[0]  # --background
 RING_INK = (0xD7, 0xF5, 0xC4)  # --foreground
+
+# The sampling surface the raster is averaged off, in viewBox units per cell. At
+# an eighth of a unit a cell is about a seventh of a sprite pixel, and a 16px
+# favicon covers ~16 cells per output pixel per axis — fine enough that the
+# averaging is the real thing rather than a slightly denser point sample.
+CELL = 0.125
+GRID = int(CANVAS / CELL)
+
+# One generated <rect>, read back by `parse_rects`. Anchored to the exact
+# attribute order and spacing `format_rects` emits, so the round trip is lossless
+# — including fill-opacity, which survives the three decimals it is written with.
+SVG_RECT = re.compile(
+    r'<rect x="([-\d.]+)" y="([-\d.]+)" width="([-\d.]+)" height="([-\d.]+)"'
+    r' fill="rgb\((\d+),(\d+),(\d+)\)"(?: fill-opacity="([\d.]+)")?/>'
+)
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -442,15 +473,32 @@ def fmt(value: float) -> str:
     return str(int(value)) if float(value).is_integer() else f"{value:.2f}"
 
 
-def run_rects(sprite: Sprite, scale: float, origin: tuple[float, float]) -> list[str]:
-    """Emit one rect per horizontal run of identical pixels.
+class Rect(NamedTuple):
+    """One horizontal run of same-coloured sprite pixels, in viewBox units.
+
+    The single geometry representation both routes share: the sprite pipeline
+    emits runs from pixels, `parse_rects` reads the generated SVG's own <rect>
+    elements back into runs, and `paint` rasterises either into one surface. One
+    representation and one rasteriser is what stops the vector and the raster
+    disagreeing about the mark.
+    """
+
+    x: float
+    y: float
+    width: float
+    height: float
+    rgba: tuple[int, int, int, int]
+
+
+def rects_from_sprite(sprite: Sprite, scale: float, origin: tuple[float, float]) -> list[Rect]:
+    """Emit one Rect per horizontal run of identical pixels.
 
     Merging runs is what keeps a bitmap-derived icon small: the sprite is mostly
     flat colour and mostly transparent, so consecutive pixels collapse into far
     fewer elements than one rect each would need.
     """
     x0, y0 = origin
-    rects: list[str] = []
+    rects: list[Rect] = []
     for row in range(sprite.height):
         col = 0
         while col < sprite.width:
@@ -461,14 +509,63 @@ def run_rects(sprite: Sprite, scale: float, origin: tuple[float, float]) -> list
             end = col + 1
             while end < sprite.width and sprite.pixels[row * sprite.width + end] == pixel:
                 end += 1
-            red, green, blue, alpha = pixel
-            opacity = "" if alpha == 255 else f' fill-opacity="{alpha / 255:.3f}"'
             rects.append(
-                f'<rect x="{fmt(x0 + col * scale)}" y="{fmt(y0 + row * scale)}" '
-                f'width="{fmt((end - col) * scale)}" height="{fmt(scale)}" '
-                f'fill="rgb({red},{green},{blue})"{opacity}/>'
+                Rect(
+                    x=x0 + col * scale,
+                    y=y0 + row * scale,
+                    width=(end - col) * scale,
+                    height=scale,
+                    rgba=pixel,
+                )
             )
             col = end
+    return rects
+
+
+def format_rects(rects: Sequence[Rect]) -> list[str]:
+    """Serialise runs as SVG <rect> elements, one per run.
+
+    `parse_rects` reverses this, so the attribute order and spacing here are a
+    contract between the two halves and its regex is pinned to them.
+    """
+    lines: list[str] = []
+    for rect in rects:
+        red, green, blue, alpha = rect.rgba
+        opacity = "" if alpha == 255 else f' fill-opacity="{alpha / 255:.3f}"'
+        lines.append(
+            f'<rect x="{fmt(rect.x)}" y="{fmt(rect.y)}" '
+            f'width="{fmt(rect.width)}" height="{fmt(rect.height)}" '
+            f'fill="rgb({red},{green},{blue})"{opacity}/>'
+        )
+    return lines
+
+
+def parse_rects(svg: str) -> list[Rect]:
+    """Recover the mark's geometry from a generated icon.svg.
+
+    Rasterising the committed SVG, rather than re-rendering the sprite a second
+    time, is what makes `favicon.ico` regenerable at all: the sprite is Nintendo's
+    art and deliberately absent from the repository, so a fresh checkout has no
+    other way to rebuild the raster. Reading the file this script itself wrote
+    also means the two formats cannot disagree about the mark.
+
+    The round trip is lossless. `fill-opacity` is written with three decimals and
+    read back by scaling by 255, so the worst representation error is 0.1275 of a
+    shade — well inside the half-shade that rounding needs to be exact.
+    """
+    rects: list[Rect] = []
+    for match in SVG_RECT.finditer(svg):
+        x, y, width, height, red, green, blue, opacity = match.groups()
+        alpha = 255 if opacity is None else round(float(opacity) * 255)
+        rects.append(
+            Rect(
+                x=float(x),
+                y=float(y),
+                width=float(width),
+                height=float(height),
+                rgba=(int(red), int(green), int(blue), alpha),
+            )
+        )
     return rects
 
 
@@ -499,33 +596,45 @@ def luminance(rgb: tuple[int, int, int]) -> float:
 
 
 def quantise(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
-    """Snap a colour to the Game Boy shade closest to it in perceived brightness.
+    """Snap a sprite colour to the nearest shade it is allowed to paint with.
 
     Matching on luminance rather than on RGB distance is what keeps the ramp in
     its own order: the shades differ far more in brightness than in hue, so a
     nearest-RGB pick would trade one shade for another of the same brightness and
     flatten the sprite's shading.
+
+    The candidate set is `SPRITE_RAMP` and not the whole ramp, because the disc's
+    own field is not a shade the sprite can paint: ink the colour of the field is
+    ink nobody can see.
     """
     target = luminance(rgb)
-    return min(DMG_RAMP, key=lambda shade: abs(luminance(shade) - target))
+    return min(SPRITE_RAMP, key=lambda shade: abs(luminance(shade) - target))
 
 
-def sprite_ink(pixel: tuple[int, int, int, int]) -> tuple[int, int, int]:
-    """The Game Boy shade one sprite pixel paints onto the disc.
+def blend_ink(colour: tuple[float, float, float], coverage: float) -> tuple[int, int, int]:
+    """Composite a sprite sample onto the disc and snap it to a sprite shade.
 
-    Box-averaging leaves the sprite's edges partly transparent, so the pixel is
+    Box-averaging leaves the sprite's edges partly covered, so a sample is
     composited onto the disc's own darkness before it is quantised: a
     half-covered edge pixel is a dimmer shade, not a hole. Quantising first would
     snap every such edge to a full shade and throw away the anti-aliasing the
     averaging was there to produce.
     """
-    r, g, b, alpha = pixel
-    weight = alpha / 255
-    blended = tuple(
-        round(channel * weight + field * (1 - weight))
-        for channel, field in zip((r, g, b), DISC, strict=True)
+    red, green, blue = colour
+    field = 1 - coverage
+    return quantise(
+        (
+            round(red * coverage + DISC[0] * field),
+            round(green * coverage + DISC[1] * field),
+            round(blue * coverage + DISC[2] * field),
+        )
     )
-    return quantise((blended[0], blended[1], blended[2]))
+
+
+def sprite_ink(pixel: tuple[int, int, int, int]) -> tuple[int, int, int]:
+    """The shade one whole sprite pixel paints onto the disc."""
+    red, green, blue, alpha = pixel
+    return blend_ink((red, green, blue), alpha / 255)
 
 
 def write_chunk(kind: bytes, data: bytes) -> bytes:
@@ -561,8 +670,68 @@ def encode_png(pixels: Sequence[tuple[int, int, int, int]], width: int, height: 
     )
 
 
+def paint(rects: Sequence[Rect]) -> list[tuple[int, int, int, int]]:
+    """Rasterise runs onto the GRID x GRID sampling surface, in document order.
+
+    Later rects overwrite earlier ones, which is SVG's own paint order, so the
+    surface reproduces what the browser draws. A cell belongs to a run when its
+    centre falls inside it, so membership is exact to half a cell — a sixteenth of
+    a viewBox unit, far below one output pixel at any icon size.
+    """
+    surface: list[tuple[int, int, int, int]] = [(0, 0, 0, 0)] * (GRID * GRID)
+    for rect in rects:
+        col0 = max(0, math.ceil(rect.x / CELL - 0.5))
+        col1 = min(GRID, math.ceil((rect.x + rect.width) / CELL - 0.5))
+        row0 = max(0, math.ceil(rect.y / CELL - 0.5))
+        row1 = min(GRID, math.ceil((rect.y + rect.height) / CELL - 0.5))
+        for row in range(row0, row1):
+            start = row * GRID
+            for col in range(col0, col1):
+                surface[start + col] = rect.rgba
+    return surface
+
+
+def disc_sample(
+    surface: Sequence[tuple[int, int, int, int]], x0: float, y0: float, x1: float, y1: float
+) -> tuple[tuple[float, float, float], float]:
+    """Mean sprite colour and coverage over one output pixel's footprint.
+
+    Colour and coverage come back separately on purpose. The colour is weighted by
+    each cell's own alpha, so a partly transparent edge does not drag it towards
+    whatever happens to sit behind the sprite, while coverage reports how much of
+    the footprint the sprite actually filled. `blend_ink` then composites that one
+    average onto the field — the same alpha-weighted arithmetic `downsample` uses
+    a level up.
+    """
+    col0 = max(0, math.floor(x0 / CELL))
+    col1 = min(GRID, math.ceil(x1 / CELL))
+    row0 = max(0, math.floor(y0 / CELL))
+    row1 = min(GRID, math.ceil(y1 / CELL))
+    red = green = blue = weight = 0.0
+    cells = 0
+    for row in range(row0, row1):
+        start = row * GRID
+        for col in range(col0, col1):
+            r, g, b, alpha = surface[start + col]
+            cells += 1
+            if not alpha:
+                continue
+            share = alpha / 255
+            red += r * share
+            green += g * share
+            blue += b * share
+            weight += share
+    if not cells or not weight:
+        return (0.0, 0.0, 0.0), 0.0
+    return (red / weight, green / weight, blue / weight), weight / cells
+
+
 def disc_pixel(
-    art: Sprite, placement: Placement, cx: float, cy: float, distance: float
+    surface: Sequence[tuple[int, int, int, int]],
+    x0: float,
+    y0: float,
+    step: float,
+    distance: float,
 ) -> tuple[int, int, int, int]:
     """The colour inside the ring: the disc's own field, with the sprite over it.
 
@@ -572,27 +741,31 @@ def disc_pixel(
     """
     if distance > INSET:
         return (*DISC, 255)
-    u = int(math.floor((cx - placement.origin[0]) / placement.scale))
-    v = int(math.floor((cy - placement.origin[1]) / placement.scale))
-    if not (0 <= u < art.width and 0 <= v < art.height):
+    colour, coverage = disc_sample(surface, x0, y0, x0 + step, y0 + step)
+    if not coverage:
         return (*DISC, 255)
-    pixel = art.pixels[v * art.width + u]
-    if not pixel[3]:
-        return (*DISC, 255)
-    return (*sprite_ink(pixel), 255)
+    return (*blend_ink(colour, coverage), 255)
 
 
-def rasterise(art: Sprite, placement: Placement, size: int) -> list[tuple[int, int, int, int]]:
+def rasterise(
+    surface: Sequence[tuple[int, int, int, int]], size: int
+) -> list[tuple[int, int, int, int]]:
     """Draw the mark into a size x size RGBA buffer, row-major.
 
     This is the SVG's geometry evaluated per pixel instead of described as shapes:
     the same ring radius, stroke width, clip circle and placement, so the raster
-    cannot drift from the vector. Each pixel is decided by where its centre falls
-    rather than by how much of it a shape grazes, which keeps the ring an even
-    band at every size instead of one that thickens where the circle cuts
-    diagonally.
+    cannot drift from the vector. The ring and the outer edge are decided by where
+    the pixel's centre falls, which keeps the ring an even band at every size
+    instead of one that thickens where the circle cuts diagonally.
+
+    Inside the disc the art is *averaged* over the whole footprint rather than
+    point-sampled from whichever cell the centre happens to land in. At 16px an
+    output pixel spans about 2.3 sprite pixels, so a point sample reads less than
+    half the art in each axis — and it is the eyes and the nose that go, exactly
+    the loss `downsample` box-averages a level up to avoid.
     """
     factor = size / CANVAS
+    step = CANVAS / size
     ring_inner = RING_RADIUS - RING_WIDTH
     pixels: list[tuple[int, int, int, int]] = []
     for y in range(size):
@@ -606,7 +779,7 @@ def rasterise(art: Sprite, placement: Placement, size: int) -> list[tuple[int, i
             elif distance >= ring_inner:
                 pixels.append((*RING_INK, 255))  # the ring's stroke
             else:
-                pixels.append(disc_pixel(art, placement, cx, cy, distance))
+                pixels.append(disc_pixel(surface, x * step, y * step, step, distance))
     return pixels
 
 
@@ -631,12 +804,41 @@ def encode_ico(images: Sequence[tuple[int, bytes]]) -> bytes:
     return bytes(header) + bytes(entries) + bytes(payloads)
 
 
-def render_svg(art: Sprite) -> str:
+def build_ico(rects: Sequence[Rect]) -> bytes:
+    """Rasterise the mark at every documented size and wrap the PNGs in an ICO."""
+    surface = paint(rects)
+    images = [(size, encode_png(rasterise(surface, size), size, size)) for size in ICO_SIZES]
+    return encode_ico(images)
+
+
+def rebuild_ico() -> int:
+    """Rebuild favicon.ico from the committed icon.svg.
+
+    This is the mode a fresh checkout uses, and the one that keeps the raster
+    honest: the art comes from the file the vector half of this script wrote, so
+    there is no second rendering of the sprite that could disagree with it.
+    """
+    if not OUT_PATH.is_file():
+        print(f"no committed icon to read: {OUT_PATH}")
+        return 1
+    rects = parse_rects(OUT_PATH.read_text(encoding="utf-8"))
+    if not rects:
+        print(f"no sprite runs found in {OUT_PATH}")
+        return 1
+    ico = build_ico(rects)
+    ICO_PATH.write_bytes(ico)
+    sizes = " + ".join(str(size) for size in ICO_SIZES)
+    print(f"source     : {OUT_PATH}")
+    print(f"runs       : {len(rects)} rects")
+    print(f"surface    : {GRID}x{GRID} sampling cells")
+    print(f"wrote      : {ICO_PATH} ({len(ico)} bytes, {sizes}, {len(SPRITE_RAMP)} sprite shades)")
+    return 0
+
+
+def render_svg(rects: Sequence[Rect]) -> str:
     """Compose the favicon: the sprite knocked into a circular cutout, plus a ring."""
-    placement = place(art)
-    rects = run_rects(art, placement.scale, placement.origin)
     ring_radius = RING_RADIUS - RING_WIDTH / 2
-    body = "\n    ".join(rects)
+    body = "\n    ".join(format_rects(rects))
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!--
   PokéCipher favicon. Generated by docs/make_favicon.py — do not edit by hand.
@@ -684,10 +886,18 @@ def render_svg(art: Sprite) -> str:
 
 
 def main(argv: Sequence[str]) -> int:
-    """Decode a sprite PNG and write next-app/app/icon.svg and favicon.ico."""
-    if len(argv) != 2:
-        print("usage: python docs/make_favicon.py <sprite.png>")
+    """Write next-app/app/icon.svg and favicon.ico.
+
+    With no argument only the ICO is rebuilt, from the committed SVG — the route a
+    fresh checkout has. With a sprite path both files are rebuilt from that
+    sprite, which is how a new download is adopted.
+    """
+    if len(argv) > 2:
+        print("usage: python docs/make_favicon.py [sprite.png]")
         return 2
+    if len(argv) == 1:
+        return rebuild_ico()
+
     source = Path(argv[1])
     if not source.is_file():
         print(f"no such sprite: {source}")
@@ -696,29 +906,29 @@ def main(argv: Sequence[str]) -> int:
     raw = decode_png(source)
     art = prepare(raw)
     placement = place(art)
-    svg = render_svg(art)
+    rects = rects_from_sprite(art, placement.scale, placement.origin)
+    svg = render_svg(rects)
     # newline="\n" keeps the generated bytes platform-independent: without it
     # write_text translates to CRLF on Windows, so the committed asset would
     # depend on which machine last re-ran this script.
     OUT_PATH.write_text(svg, encoding="utf-8", newline="\n")
 
-    images = [(size, encode_png(rasterise(art, placement, size), size, size)) for size in ICO_SIZES]
-    ico = encode_ico(images)
+    ico = build_ico(rects)
     ICO_PATH.write_bytes(ico)
 
     bounds = placement.bounds
     opaque = sum(1 for pixel in art.pixels if pixel[3])
+    shades = len({sprite_ink(pixel) for pixel in art.pixels if pixel[3]})
+    sizes = " + ".join(str(size) for size in ICO_SIZES)
     print(f"source     : {source}")
     print(f"sprite     : {raw.width}x{raw.height} -> {art.width}x{art.height} after knock-out")
     print(f"opaque     : {opaque} pixels")
     print(f"opaque box : {bounds.right - bounds.left + 1}x{bounds.bottom - bounds.top + 1}")
     print(f"pixel scale: {placement.scale:.4f} (uniform, so pixels stay square)")
     print(f"clipped    : {clipped_count(art, bounds, placement.scale, placement.origin)} trimmed")
-    print(f"rects      : {svg.count('<rect')} runs")
+    print(f"runs       : {len(rects)} rects")
     print(f"wrote      : {OUT_PATH} ({len(svg.encode('utf-8'))} bytes)")
-    shades = len({ink for pixel in art.pixels if pixel[3] for ink in (sprite_ink(pixel),)})
-    sizes = " + ".join(str(size) for size in ICO_SIZES)
-    print(f"wrote      : {ICO_PATH} ({len(ico)} bytes, {sizes}, {shades} Game Boy shades)")
+    print(f"wrote      : {ICO_PATH} ({len(ico)} bytes, {sizes}, {shades} sprite shades)")
     return 0
 
 
