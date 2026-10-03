@@ -1,10 +1,25 @@
-# PokéCipher
+<p align="center">
+  <img src="docs/wordmark.svg" alt="PokéCipher" width="620" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/pterw/PokeCipher/actions/workflows/ci.yml"><img src="https://github.com/pterw/PokeCipher/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+  <a href="https://poke-cipher.vercel.app"><img src="https://img.shields.io/badge/live-poke--cipher.vercel.app-8bac0f?style=flat-square" alt="Live site" /></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-0f380f?style=flat-square" alt="Python 3.10 or newer" />
+  <a href="https://docs.astral.sh/ruff/"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Code style: Ruff" /></a>
+</p>
 
 A retro, Pokédex-themed web app that encrypts text into sequences of Pokémon
-names and decrypts them back again. Built with Next.js and Python, deployed on
-Vercel.
+names and decrypts them back again. Type a sentence and it comes back as a row of
+Game Boy sprites; feed that row back in and you get the sentence — usually, but
+not always, verbatim. That "not always" is the interesting part, and the rest of
+this README explains why.
 
-![Screenshot of the app](Screenshot.png)
+Built with Next.js and Python, deployed on Vercel.
+
+![PokéCipher on a laptop: the CLI hero above the encode tool, with "Hello World!" shown as a row of Pokemon sprites](Screenshot.png)
+
+![The same encode on a phone, where the layout stacks and the page scrolls](Screenshot-mobile.png)
 
 ## What the cipher does
 
@@ -145,15 +160,61 @@ decode.
 - **The cipher is not cryptographically secure.** It is a puzzle and a teaching
   tool for substitution ciphers and state tracking, not a way to protect data.
 - Only the first 95 entries of each regional dex are used. Names containing
-  spaces (Mr. Mime, Tapu Koko) cannot be added without changing the delimiter
+  spaces (Mr. Mime, Tapu Koko) cannot be added without changing the delimiter,
+  and changing the delimiter would invalidate every message ever encoded.
+
+## Branding assets
+
+The wordmark and the favicon are generated rather than hand-drawn, so they stay
+in step with the palette instead of drifting from it:
+
+```bash
+python docs/make_wordmark.py                # writes docs/wordmark.svg
+python docs/make_favicon.py                 # rewrites favicon.ico from icon.svg
+python docs/make_favicon.py <sprite.png>    # rewrites icon.svg and favicon.ico
+```
+
+Both outputs are committed, so neither GitHub nor the deployment ever needs to
+run these scripts.
+
+- **`docs/wordmark.svg`** draws every letter from explicit pixel rectangles.
+  GitHub cannot load webfonts inside a README image, so text set with `<text>`
+  would fall back to whatever the viewer happens to have installed and stop
+  looking like the app.
+- **`docs/make_favicon.py`** writes two files, because Next.js publishes every
+  icon it finds in `app/` and browsers choose between them inconsistently.
+  `icon.svg` is vector and follows `prefers-color-scheme`; `favicon.ico` is a
+  raster and cannot, so it carries its own field instead — a dark disc that reads
+  on a light toolbar, ringed in a light colour that reads on a dark one. The ICO
+  is rasterised from the committed SVG rather than by rendering the sprite a
+  second time, so the two cannot drift apart, and a fresh checkout can rebuild it
+  without needing the sprite at all.
+- **The ICO's field and the sprite's ink never share a shade.** The sprite's
+  darkest pixels are its outline, ear tips and eye pupils; snapping those onto
+  the disc's own colour painted Pikachu's contour in the background colour and
+  left the tab icon unreadable. The sprite draws with the three lighter Game Boy
+  shades and the field keeps the darkest, which is what makes the outline legible.
+- **The raster averages the art instead of sampling it.** At 16px one output
+  pixel spans about 2.3 sprite pixels, so reading a single pixel per output pixel
+  discards more than half the art in each axis — the eyes and the nose go first.
+  Each output pixel is averaged over the whole footprint it covers instead.
+
+In neither format does the app's own theme toggle recolour the tab icon: a
+favicon is drawn in browser chrome, outside the document, so it cannot see the
+toggle. The SVG at least gets `prefers-color-scheme`; the ICO gets nothing at all,
+which is why it carries a fixed dark field and a light ring. The art is the
+Generation 1 Pikachu sprite from Pokémon Yellow, the era the Game Boy palette
+comes from. Sprite art is the property of Nintendo / Game Freak / Creatures Inc.,
+and the source sprite is deliberately not committed: `favicon.ico` is rebuilt from
+`icon.svg`, so the sprite is only needed to change the art itself.
 
 ## TODO
 
 [ ] Organize root repo (folders, etc.) 
 [ ] Rework mobile UI (tweaks or redesign) 
 [ ] Adresss prior review feedback 
-[ ] Replace screenshot
-[ ] Include README.MD badges 
+[x] Replace screenshot
+[x] Include README.MD badges 
 [ ] Include social badges on webapp 
 
 More to come. 

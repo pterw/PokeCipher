@@ -66,6 +66,7 @@ local_build.txt
 # Handoff notes for AI agent sessions. Live on disk, but must not reach main.
 BOOTSTRAP.md
 HANDOFF.md
+memories.md
 # Stray Turborepo scaffold from an early "shadcn in a monorepo" experiment that
 # predates next-app/. Deleted from disk on 2026-09-01; the rule stays so a
 # re-scaffold does not stage as a gitlink (it carries its own .git).
