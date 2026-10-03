@@ -90,7 +90,7 @@ way to combine them if that is ever worth revisiting.)
 
 Both deploy on push to `main`. Every pull request gets a preview URL.
 
-### Domains, and a live trap
+### Domains, and the former alias trap
 
 | Domain | Serves | Vercel project |
 |---|---|---|
@@ -101,20 +101,26 @@ The names were swapped on 2026-08-30: the good name had been on the API, and the
 app was on `next-app-blue-nine.vercel.app`. Note `next-app.vercel.app` belongs to
 **someone else** — it resolves, it is not ours, and it must never be used.
 
-**Both `.vercel.app` names are pinned deployment aliases, not project domains.**
-They do **not** follow production deploys. After every merge to `main` the alias
-must be re-pointed by hand or the domain silently serves the previous build:
+**Both names are project domains and follow production deploys automatically.**
+Fixed on 2026-10-03 with `vercel domains add <name> <project> --force`, which
+releases the name from wherever it is stuck and re-adds it as a project domain;
+Vercel then auto-assigns it to every production deployment:
 
 ```bash
-npx vercel alias set <new-production-deployment-url> poke-cipher.vercel.app
-npx vercel alias set <new-production-deployment-url> poke-cipher-api.vercel.app
+npx vercel domains add poke-cipher.vercel.app poke-cipher --force
+npx vercel domains add poke-cipher-api.vercel.app poke-cipher-api --force
 ```
 
-This has already caused a false "the fix didn't deploy" report. The real fix is
-in the dashboard — Settings → Domains, release the name from the project that
-still owns it and add it to the right one — because the CLI cannot: `vercel
-domains rm` answers `Domain not found`, and `vercel domains add` answers
-`alias_conflict`. Until that is done, treat re-aliasing as part of deploying.
+The old trap was real but its written diagnosis was incomplete. The names had
+been left as *deployment* aliases pinned to single builds, and `vercel domains
+add` without `--force` answers `alias_conflict`, which read as "the CLI cannot
+do this". With `--force` it can. **Never** re-point these names with
+`vercel alias set` after a merge — that recreates a pinned alias and silently
+reintroduces the trap.
+
+The sting was measured, not imagined: before the fix, `poke-cipher-api.vercel.app`
+was serving a build one generation older than the API project's actual
+production, purely because nothing had re-pointed it.
 
 Two further facts worth not rediscovering: `vercel project resume` refuses to run
 non-interactively and must be typed by a human; and both projects report

@@ -381,3 +381,70 @@ sequential command. The SHAs above are the re-made ones.
    2026-10-03. No change was made to the file or the gate; the red check on PR #16
    is the recorded outcome, not an open defect.
 
+---
+
+# Ledger — deployment alias resolution
+
+> A third short pass, same rules: every claim below came from a command run in
+> this session, on 2026-10-03, immediately after the favicon pass.
+
+## The request
+
+The owner asked for the `.vercel.app` names to follow production without manual
+intervention: "this was the point of vercel integration."
+
+## What was measured
+
+With `vercel alias list` and `vercel inspect`, not assumed:
+
+- `poke-cipher.vercel.app` routed to the web project's production deployment of
+  2026-09-01 (`poke-cipher-oy11zca1l…`), and `poke-cipher-api.vercel.app` to the
+  API project's deployment of **2026-08-30** (`poke-cipher-a7egs30lj…`) — one
+  generation behind the API's actual production of 2026-09-01
+  (`poke-cipher-fle1uxs3o…`). The API name was silently serving the previous
+  build, which is the documented failure mode in action.
+- The projects' *automatic* production URLs are `pokecipher.vercel.app` (web) and
+  `next-app-pokecipher.vercel.app` (API); `vercel project ls` lists those, not
+  the trap names.
+- `vercel domains ls` shows zero team domains, so neither trap name was a
+  project domain.
+
+The earlier "the CLI cannot fix this" came from running `vercel domains add`
+**without** `--force`, which answers `alias_conflict` while the name is still
+held. The `--force` flag — documented as "remove it from an existing one" — is
+the missing half of that command.
+
+## The fix
+
+```bash
+npx vercel domains add poke-cipher.vercel.app poke-cipher --force
+npx vercel domains add poke-cipher-api.vercel.app poke-cipher-api --force
+```
+
+Both exited 0. The web name reported "already assigned to project poke-cipher";
+the API name reported "Success! … added to project poke-cipher-api". Both
+concluded: "The domain will automatically get assigned to your latest production
+deployment."
+
+## Verification
+
+| Check | Result |
+|---|---|
+| `poke-cipher-api.vercel.app` routing | **moved** from the 2026-08-30 deployment to the current production (`poke-cipher-fle1uxs3o…`), confirmed by re-running `vercel alias list` |
+| `https://poke-cipher.vercel.app` | 200, 87,503 bytes |
+| `https://poke-cipher-api.vercel.app/api/names` | 200, JSON names list |
+| `https://poke-cipher.vercel.app/favicon.ico` | 200, **25,931 bytes** — the pre-merge build, as expected |
+
+No production deployment was triggered to test the follow behaviour — that would
+have deployed unmerged work. The definitive test is the merge of PR #16 itself:
+afterwards `https://poke-cipher.vercel.app/favicon.ico` must read **2,848 bytes**
+(the regenerated ICO) instead of 25,931, and both domains must serve the new
+build with nothing re-pointed by hand.
+
+## Docs corrected
+
+`AGENTS.md` ("Domains, and the former alias trap") and `HANDOFF.md` §3.1 now
+state the fix and forbid `vercel alias set` re-pointing, which would recreate
+the pinned aliases. `DOD.md` and the ledger entries above keep their historical
+wording: they recorded what was true when they were written.
+
