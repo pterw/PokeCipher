@@ -293,13 +293,62 @@ was introduced or altered**, so the limitations recorded as F3 above stand
 unchanged and remain pinned by `test_cipher_invariants.py`.
 
 
+## Remote CI on the pushed head
+
+The gates above are all local. The remote picture on `a1f0a0a` is recorded here
+rather than summarised as green.
+
+| Check | Result |
+|---|---|
+| `Python — lint & test` (GitHub Actions) | **pass**, 34 s |
+| `Web — test, lint, typecheck & build` (GitHub Actions) | **pass**, 35 s |
+| `Vercel – poke-cipher` | **pass**, deployment completed |
+| `Vercel – poke-cipher-api` | **pass**, deployment completed |
+| `Vercel Preview Comments` | pass |
+| `Graphify Formal Verification` | neutral (advisory: 0 PR-changed functions verified) |
+| `Codacy Static Code Analysis` | **fails its gate: 3 new issues, 0 allowed** |
+| `fly-io`, `claude` | queued — and queued on the parent commit too |
+
+### The Codacy gate is failing on a file this pass never touches
+
+`gh pr checks` prints Codacy as `fail`; the check-run conclusion is
+`action_required` with the title *"3 new issues (0 max.) of at least minor
+severity."* All three annotations point into `test_cipher_invariants.py`:
+
+| Line | Finding | The code there |
+|---|---|---|
+| 135 | "Use of assert detected." | `assert marker is not None  # for the type checker` |
+| 180 | "Standard pseudo-random generators are not suitable for security/cryptographic purposes." | `rng = random.Random(0xC1FEE)` |
+| 325 | the same | `rng = random.Random(0xDEC0DE)` |
+
+Verified with git rather than assumed:
+
+- `test_cipher_invariants.py` does **not** exist on `origin/main`, so it is new
+  *to this PR* only because the PR inherits nine unpushed commits.
+- It was added by `2201ce9`, one of those nine — not by any commit of this pass.
+- `git log 4ec8af6..HEAD -- test_cipher_invariants.py` is **empty**: none of the
+  seven commits here touches it.
+
+Both findings are also the wrong call for the file they sit in. An `assert` is the
+entire point of a test, and a seeded `random.Random` is the correct tool for a
+reproducible property test — it is explicitly not a security context. The gate
+allows zero new issues, so warnings that are right in context still fail it.
+
+**Left alone deliberately.** `AGENTS.md` says to change behaviour only when asked
+and never to reformat files that did not otherwise need changing. `2201ce9` is what
+pins the `MAX_DECODE_BRANCHES` limitation recorded as F3 above, so rewriting it to
+satisfy a linter is the wrong trade. Two real options, and both are the owner's
+call: silence those three warnings in that file, or relax Codacy's gate for it.
+
+
 ## Commits
 
 | SHA | Message |
 |---|---|
 | `fedaeec` | `fix(docs): rasterise the favicon from the SVG and keep sprite ink off the field` |
 | `5af00f4` | `test: pin the favicon to the SVG and the sprite ink to the ramp` |
-| _(this commit)_ | `docs: record the favicon correctness pass` |
+| `a1f0a0a` | `docs: record the favicon correctness pass` |
+| _(this commit)_ | `docs: record the remote CI picture, including the failing Codacy gate` |
 
 An earlier attempt landed `test_favicon.py` under the `fix(docs)` message: two
 `git` invocations were issued as parallel commands and collided on
@@ -323,4 +372,8 @@ sequential command. The SHAs above are the re-made ones.
    source art, so the ICO quantises it onto the Game Boy ramp. That is what puts
    it in the app's palette, and it is also why it will never follow the page's
    theme toggle.
+4. **The Codacy gate needs a decision.** It fails on three warnings in
+   `test_cipher_invariants.py`, a file inherited from the nine unpushed commits
+   and untouched by this pass. Either silence those three warnings there, or relax
+   the gate for that file. Both are the owner's call and neither was taken.
 
