@@ -17,10 +17,6 @@ this README explains why.
 
 Built with Next.js and Python, deployed on Vercel.
 
-![PokéCipher on a laptop: the CLI hero above the encode tool, with "Hello World!" shown as a row of Pokemon sprites](Screenshot.png)
-
-![The same encode on a phone, where the layout stacks and the page scrolls](Screenshot-mobile.png)
-
 ## What the cipher does
 
 PokéCipher is a **stateful polyalphabetic substitution cipher**. It maps
