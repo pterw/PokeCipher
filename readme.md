@@ -170,7 +170,8 @@ in step with the palette instead of drifting from it:
 
 ```bash
 python docs/make_wordmark.py                # writes docs/wordmark.svg
-python docs/make_favicon.py <sprite.png>    # writes icon.svg and favicon.ico
+python docs/make_favicon.py                 # rewrites favicon.ico from icon.svg
+python docs/make_favicon.py <sprite.png>    # rewrites icon.svg and favicon.ico
 ```
 
 Both outputs are committed, so neither GitHub nor the deployment ever needs to
@@ -184,14 +185,28 @@ run these scripts.
   icon it finds in `app/` and browsers choose between them inconsistently.
   `icon.svg` is vector and follows `prefers-color-scheme`; `favicon.ico` is a
   raster and cannot, so it carries its own field instead — a dark disc that reads
-  on a light toolbar, ringed in a light colour that reads on a dark one. Both are
-  built from the same sprite and the same geometry, so they cannot drift apart.
+  on a light toolbar, ringed in a light colour that reads on a dark one. The ICO
+  is rasterised from the committed SVG rather than by rendering the sprite a
+  second time, so the two cannot drift apart, and a fresh checkout can rebuild it
+  without needing the sprite at all.
+- **The ICO's field and the sprite's ink never share a shade.** The sprite's
+  darkest pixels are its outline, ear tips and eye pupils; snapping those onto
+  the disc's own colour painted Pikachu's contour in the background colour and
+  left the tab icon unreadable. The sprite draws with the three lighter Game Boy
+  shades and the field keeps the darkest, which is what makes the outline legible.
+- **The raster averages the art instead of sampling it.** At 16px one output
+  pixel spans about 2.3 sprite pixels, so reading a single pixel per output pixel
+  discards more than half the art in each axis — the eyes and the nose go first.
+  Each output pixel is averaged over the whole footprint it covers instead.
 
 In neither format does the app's own theme toggle recolour the tab icon: a
 favicon is drawn in browser chrome, outside the document, so it cannot see the
-toggle. The favicon's art is the Generation 1 Pikachu sprite from Pokémon Yellow,
-the era the Game Boy palette comes from. Sprite art is the property of
-Nintendo / Game Freak / Creatures Inc., and the source sprite is not committed.
+toggle. The SVG at least gets `prefers-color-scheme`; the ICO gets nothing at all,
+which is why it carries a fixed dark field and a light ring. The art is the
+Generation 1 Pikachu sprite from Pokémon Yellow, the era the Game Boy palette
+comes from. Sprite art is the property of Nintendo / Game Freak / Creatures Inc.,
+and the source sprite is deliberately not committed: `favicon.ico` is rebuilt from
+`icon.svg`, so the sprite is only needed to change the art itself.
 
 ## TODO
 

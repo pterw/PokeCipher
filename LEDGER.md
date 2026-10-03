@@ -170,3 +170,157 @@ are not defects to fix:
 Both would require changing the decode contract, which `DOD.md` forbids without
 explicit approval.
 
+
+---
+
+# Ledger — favicon correctness pass
+
+> A second, later pass, on top of the one above and under the same rules. Every
+> number here came from a command run in this session, on branch
+> `feat/branding-assets` at `1cd2b73`.
+
+## Environment
+
+| Fact | Value |
+|---|---|
+| Python | 3.13.3 (venv) |
+| Node / npm | v24.16.0 / 10.8.2 |
+| Working tree at start | clean apart from untracked scratch probes |
+
+## The report
+
+The deployed tab icon was reported wrong: `icon.svg` was correct, `favicon.ico`
+was not the character. Both files are written by `docs/make_favicon.py` from the
+same source, so the divergence had to be in the raster path specifically. It was
+not a deployment fault — the committed ICO really was wrong.
+
+## Findings
+
+### F4 — the ICO point-sampled the art and discarded most of it
+
+`disc_pixel` read exactly one art pixel per output pixel:
+
+```python
+u = int(math.floor((cx - placement.origin[0]) / placement.scale))
+```
+
+At 16x16 an output pixel spans `CANVAS / size = 2` viewBox units, while the art
+grid is `scale ~= 0.884` units per pixel, so consecutive samples sat ~2.26 art
+pixels apart. **Roughly 56% of the art in each axis — about 80% by area — was
+never read**, and the eyes and the nose are what go first. This is precisely the
+loss `downsample` box-averages 56->28 to avoid, reintroduced one level further
+down.
+
+### F5 — the sprite's ink could equal the disc's own field
+
+`DISC = DMG_RAMP[0]` and `quantise` chose from the **whole** ramp, field included.
+`sprite_ink` composited onto `DISC` and then quantised, so any colour below the
+39.0/77.4 luminance midpoint landed on the field colour and vanished. Measured on
+the old code:
+
+| Sprite grey | Old ink | Visible? |
+|---|---|---|
+| 0 (`rgb(0,0,0)`) | `(15,56,15)` | **no — identical to the field** |
+| 21 | `(15,56,15)` | **no** |
+| 42 | `(15,56,15)` | **no** |
+| 56 | `(15,56,15)` | **no** |
+| 63 | `(48,98,48)` | yes |
+
+The committed SVG carries 13 runs of `rgb(0,0,0)`, 8 of `rgb(42,42,42)`, and one
+each of `rgb(21,21,21)` and `rgb(56,56,56)`: Pikachu's outline, ear tips and eye
+pupils. Every one of them was being painted in the background colour. The vector
+SVG was unaffected because it is geometry, which is exactly the reported
+asymmetry.
+
+### F6 — the ICO could not be regenerated at all
+
+`main` required a sprite path. That sprite is Nintendo's art and is deliberately
+not committed, and no copy existed on disk, so `favicon.ico` was **stuck**: any
+edit would have had to be made by hand, which is how a generated asset and its
+generator drift.
+
+
+## Changes
+
+| File | Change |
+|---|---|
+| `docs/make_favicon.py` | One geometry representation (`Rect`) that both routes share: `rects_from_sprite` / `format_rects` / `parse_rects`, with a single `paint` and a single `rasterise`. |
+| `docs/make_favicon.py` | `disc_pixel` averages over the output pixel's whole footprint instead of point-sampling it (F4). |
+| `docs/make_favicon.py` | `SPRITE_RAMP = DMG_RAMP[1:]`, so sprite ink can never be the field colour (F5). |
+| `docs/make_favicon.py` | `python docs/make_favicon.py` with no argument rebuilds `favicon.ico` from the committed `icon.svg` (F6). |
+| `next-app/app/favicon.ico` | Regenerated from the committed `icon.svg`. |
+| `test_favicon.py` | 16 regression tests, 306 subtests (new file). |
+| `readme.md` | Branding section: the new command, the field/ink rule, the averaging rule, and the ICO's fixed theming. |
+| `LEDGER.md` | This record. |
+
+`icon.svg` is deliberately **unchanged**. The vector was already correct, and
+regenerating it would have risked the one artefact that was confirmed to look
+right.
+
+## Verification
+
+The ICO was regenerated from the committed SVG, then decoded back and compared
+against a fresh rasterisation of that same SVG:
+
+| Check | Result |
+|---|---|
+| `python docs/make_favicon.py` | 193 rects, 256x256 surface, **2848 bytes**, sizes 16+32+48+256, 3 sprite shades |
+| Each ICO entry vs. a fresh `rasterise` | all four sizes **identical** |
+| `sprite_ink` for every grey 0..255 | **none** equal `DISC`; four of the sampled levels did before |
+| Outline ink present at 16x16 | 33 pixels of `(48,98,48)` — it was 0 before |
+| `favicon.ico` size | 2781 -> 2848 bytes |
+
+| Gate | Command | Result |
+|---|---|---|
+| Backend tests | `python -m pytest -q` | **222 passed**, 7514 subtests, 7.83 s |
+| Backend lint | `python -m ruff check .` | clean |
+| Backend format | `python -m ruff format --check .` | 31 files already formatted |
+| Frontend tests | `npm run test` | **46 passed** (2 files) |
+| Frontend lint | `npm run lint` | clean |
+| Frontend typecheck | `npm run typecheck` | clean |
+| Frontend build | `npm run build` | compiled in 2.4 s, 5 static pages |
+
+The backend totals rose from the 206 / 7208 recorded above by exactly the 16 tests
+and 306 subtests added here. No existing test was edited.
+
+## No core-cipher change
+
+`pokecipher/`, `app.py` and `cipher.py` were not touched by this pass, nor by any
+of the four branding commits beneath it; they name only `docs/`,
+`next-app/app/`, `readme.md`, `.gitattributes` and the added `test_favicon.py`.
+**No decoder branching, ambiguity resolution or `MAX_DECODE_BRANCHES` behaviour
+was introduced or altered**, so the limitations recorded as F3 above stand
+unchanged and remain pinned by `test_cipher_invariants.py`.
+
+
+## Commits
+
+| SHA | Message |
+|---|---|
+| `fedaeec` | `fix(docs): rasterise the favicon from the SVG and keep sprite ink off the field` |
+| `5af00f4` | `test: pin the favicon to the SVG and the sprite ink to the ramp` |
+| _(this commit)_ | `docs: record the favicon correctness pass` |
+
+An earlier attempt landed `test_favicon.py` under the `fix(docs)` message: two
+`git` invocations were issued as parallel commands and collided on
+`.git/index.lock`, so one `git add` never ran. Nothing was pushed, the commit was
+reverted with `git reset --soft HEAD~1`, and both commits were re-made in a single
+sequential command. The SHAs above are the re-made ones.
+
+## Open items handed back
+
+1. **The ICO cannot follow the theme.** A raster favicon is drawn in browser
+   chrome, outside the document, so it sees neither the app toggle nor a media
+   query. It carries a fixed dark field and a light ring instead, which is now
+   stated in `readme.md`. That is a platform limitation, not something the
+   generator can work around.
+2. **`icon.svg` is now the source of truth for the mark.** To change the art, the
+   vector must be regenerated from a fresh sprite first and the ICO rebuilt from
+   it afterwards. The sprite is still deliberately not committed, so changing the
+   *art* needs Nintendo's PNG from outside the repository — but rebuilding only
+   the raster does not.
+3. **The tab icon keeps a fixed palette by design.** The sprite is greyscale
+   source art, so the ICO quantises it onto the Game Boy ramp. That is what puts
+   it in the app's palette, and it is also why it will never follow the page's
+   theme toggle.
+
