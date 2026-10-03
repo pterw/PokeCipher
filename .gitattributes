@@ -15,6 +15,11 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.html text eol=lf
+# SVG is XML text, and two committed SVGs are generated assets
+# (docs/wordmark.svg and next-app/app/icon.svg). Left unlisted, their endings
+# would follow each contributor's core.autocrlf, so the same generator re-run
+# could commit different bytes on different machines.
+*.svg text eol=lf
 
 # Python and config sources: LF.
 *.py text eol=lf
