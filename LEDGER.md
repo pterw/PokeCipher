@@ -44,30 +44,90 @@ No documentation drift found in the cipher claims. Nothing changed here.
 
 ## Findings
 
-### F1 — fixed: the decode gate was advertised but not enforced
+### F1 — investigated and DISPROVEN: the decode gate is enforced
 
-`next-app/app/page.tsx` rendered the Decode button with `aria-disabled={!canDecode}`
-and `opacity-40`, and `PRODUCT.md` specifies the control is "gated rather than
-error-handled". But `aria-disabled` does not suppress click events, and `run()`
-guarded only `hasInput`, `tooLong` and `busy` — never `canDecode`.
+**Suspected:** `next-app/app/page.tsx` renders Decode with `aria-disabled={!canDecode}`
+and `opacity-40`, and `aria-disabled` does not suppress click events. `run()`
+guards `hasInput`, `tooLong` and `busy` but never `canDecode`. Read in isolation
+that looks like a control that announces itself as off and works anyway.
 
-**Observed consequence:** clicking the visibly-shaded Decode button while the
-input was ordinary prose still issued `POST /api/decode`, and replaced the
-result panel with a wall of `<?unknown: ...>` markers. The control looked off,
-announced itself as off, and worked anyway — directly contradicting the status
-line beside it ("Not Pokemon names, so decoding is off.").
+**Disproof — the exact call site, `page.tsx:218`:**
 
-**Fix:** extract the three input preconditions into one pure, testable function
-`blockedReason(mode, text, known)` in `lib/pokecipher-api.ts`, and have `run()`
-consult it. This keeps the gate in the module that already owns
-`looksLikeCiphertext` and `isWithinLimit`, so the component cannot drift from
-it, and it is unit-testable in the existing `node`-environment vitest setup —
-`jsdom` and `@testing-library/react` are not installed, so a component test was
-not available without adding dependencies.
+```tsx
+onClick={() => canDecode && run("decode")}
+```
 
-**Behaviour preserved:** the empty-input and over-limit messages are unchanged
-byte for byte. Only the previously-missing decode guard is new. Encoding is
-never gated, per `PRODUCT.md`.
+The handler short-circuits on `canDecode`, so the button cannot fire while the
+gate is shut. `aria-disabled` and the shading *announce* the condition; the `&&`
+in `onClick` *enforces* it. Both are present and consistent, and the keyboard
+shortcut at `page.tsx:183` routes through the same `canDecode` test. This matches
+`PRODUCT.md`: gated, with `aria-disabled` chosen over `disabled` deliberately so
+the control keeps its place in the tab order.
+
+**No defect. No change made.**
+
+The suspicion was acted on before it was proven: a prototype fix (a pure
+`blockedReason(mode, text, known)` extracted into `lib/pokecipher-api.ts`, with
+nine regression tests written failing-first — confirmed red, `9 failed | 46
+passed`) was built on the unverified premise. Reading the call site disproved it,
+and both files were restored with
+`git checkout -- next-app/lib/pokecipher-api.ts next-app/lib/pokecipher-api.test.ts`.
+The suite is back to **46 passed**, and `git status` shows no modification to
+either file.
+
+Recorded in full because the near-miss is the useful part. `run()` genuinely
+reads as though the gate is missing, and the next reader will suspect the same
+thing. Moving the guard into `run()` would be a readability improvement, but
+`AGENTS.md` forbids defensive branches for states that cannot occur, and this one
+cannot — so it stays as it is. **This is exactly the failure `DOD.md`'s
+"evidence, not memory" rule exists to catch.**
+
+## Outcome
+
+**No product code changed in this pass.** Every claim the product makes about the
+cipher was re-derived from the running encoder and held. The one suspected defect
+was disproven at its call site and reverted. The two real observations (F2, F3)
+are contract decisions that belong to the user, not bug fixes to make
+unilaterally.
+
+### Verification after the revert
+
+| Gate | Result |
+|---|---|
+| `npm run test` | **46 passed** (2 files) — back to baseline |
+| `git status` for `next-app/` | clean; neither reverted file is modified |
+
+Because the revert restored both files byte for byte, the tracked tree differs
+from `de79dea` only by the two documentation files, so the backend baseline
+(206 passed, ruff clean, format clean) still holds unchanged.
+
+### Commits
+
+| SHA | Message |
+|---|---|
+| `e14cbf7` | docs: add the definition of done and the work ledger |
+| _(this commit)_ | docs: correct the ledger — the decode gate was never broken |
+
+**Nothing pushed.** `DOD.md` requires explicit approval before a push, and both
+`.vercel.app` names are pinned deployment aliases that must be re-pointed by hand
+after any merge to `main`.
+
+## Open items handed back
+
+1. **F2 — decide the byte cap.** Whether `MAX_BODY_BYTES` should rise so a
+   4,000-character non-ASCII message cannot be rejected by the byte cap. Not
+   reachable from the browser; changing it requires updating
+   `test_body_exactly_at_the_size_limit_is_accepted`, which pins 32 KiB exactly.
+2. **Scratch files that predate this pass are not gitignored.** `.gitignore`
+   covers `_*.txt`, but not the `._`-prefixed or `out_`-prefixed forms, so these
+   still show as untracked: `._probe_*.txt`, `._tmp_*.txt`, `_issues.json`,
+   `out_*.txt`. Deleting them or extending the ignore rule is a small hygiene win.
+   The `_verify*.py` probes written during this pass were deleted.
+3. **Optional readability, deliberately not done.** `run()` in `page.tsx` reads as
+   though the decode gate is missing because the guard lives in the `onClick`
+   prop. Consolidating it would read better but adds a branch for a state that
+   cannot occur, which `AGENTS.md` forbids.
+
 
 ### F2 — recorded, not changed: the 32 KiB body cap can reject legal input
 
