@@ -245,9 +245,11 @@ not on PATH in this environment.
 - Changing the Pokédex lists or the algorithm invalidates all previously
   generated ciphertext. Call that out explicitly in the pull request.
 - Frontend unit tests are Vitest files co-located with the code they cover
-  (`lib/markers.test.ts`). They run in the `node` environment because the code
-  under test is pure; component tests need `jsdom` and `@testing-library/react`
-  added first. CI runs `npm run test` before lint, typecheck and build.
+  (`lib/markers.test.ts`). They run in the default `node` environment because the
+  code under test is pure. A component test opts itself into jsdom with a
+  `// @vitest-environment jsdom` docblock (`components/page.test.tsx`) and stubs
+  `fetch`, so the suite never needs a running API. CI runs `npm run test` before
+  lint, typecheck and build.
 
 ## Style rules
 

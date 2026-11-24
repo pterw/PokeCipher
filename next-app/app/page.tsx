@@ -57,6 +57,10 @@ export default function Page() {
   // choice of mode. Failure counts as not ready: guessing wrong there means
   // silently encoding the ciphertext the user meant to decode.
   const [gateReady, setGateReady] = useState(false)
+  // Why the vocabulary is missing, when it is. Without this the status line
+  // reports a failed fetch as "Not Pokemon names", which blames the text the
+  // user pasted for a service that never answered.
+  const [gateError, setGateError] = useState(false)
 
   // The decode gate needs the Pokedex vocabulary, which lives in Python. Fetched
   // once per mount rather than hardcoded, so the dex stays the single source of
@@ -70,7 +74,8 @@ export default function Page() {
         setGateReady(true)
       })
       .catch((err) => {
-        console.error("Failed to fetch Pokedex names for decode gate:", err)
+        console.error("Failed to fetch Pokédex names for decode gate:", err)
+        if (!cancelled) setGateError(true)
       })
     return () => {
       cancelled = true
@@ -283,7 +288,9 @@ export default function Page() {
               ? "Type text to encode, or paste Pokémon names to decode."
               : canDecode
                 ? `${recognised} Pokémon ${recognised === 1 ? "name" : "names"} recognised.`
-                : "Not Pokémon names, so decoding is off. Encode instead."}
+                : gateError
+                  ? "Could not load the Pokémon list, so decoding is off. Encoding still works."
+                  : "Not Pokémon names, so decoding is off. Encode instead."}
           </p>
 
           {error ? (
