@@ -7,8 +7,10 @@ import {
   decodeText,
   encodeText,
   fetchKnownNames,
+  foldToken,
   isWithinLimit,
   looksLikeCiphertext,
+  type Vocabulary,
 } from "./pokecipher-api"
 
 /** Build a minimal Response whose body parses as JSON. */
@@ -81,43 +83,63 @@ describe("decodeText", () => {
   })
 
   it("forwards the server's truncated flag", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ result: "hello wnrld", truncated: true }))
-    await expect(decodeText("Zubat")).resolves.toEqual({ text: "hello wnrld", truncated: true })
+    fetchMock.mockResolvedValue(
+      jsonResponse({ result: "hello wnrld", truncated: true })
+    )
+    await expect(decodeText("Zubat")).resolves.toEqual({
+      text: "hello wnrld",
+      truncated: true,
+    })
   })
 
   it("treats a non-boolean truncated field as not truncated", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ result: "He", truncated: "yes" }))
-    await expect(decodeText("Zubat")).resolves.toEqual({ text: "He", truncated: false })
+    fetchMock.mockResolvedValue(
+      jsonResponse({ result: "He", truncated: "yes" })
+    )
+    await expect(decodeText("Zubat")).resolves.toEqual({
+      text: "He",
+      truncated: false,
+    })
   })
 })
 
 describe("error handling", () => {
   it("surfaces the server's error message", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "Field 'text' must be a string." }, 400))
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "Field 'text' must be a string." }, 400)
+    )
     await expect(encodeText("x")).rejects.toThrow(PokeCipherError)
-    await expect(encodeText("x")).rejects.toThrow("Field 'text' must be a string.")
+    await expect(encodeText("x")).rejects.toThrow(
+      "Field 'text' must be a string."
+    )
   })
 
   it("reports a status when the body has no error field", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 413))
-    await expect(encodeText("x")).rejects.toThrow("Request failed with status 413.")
+    await expect(encodeText("x")).rejects.toThrow(
+      "Request failed with status 413."
+    )
   })
 
   it("reports a non-JSON response as an unreachable service", async () => {
     fetchMock.mockResolvedValue(responseWithoutJson(500))
     await expect(encodeText("x")).rejects.toThrow(
-      "Could not reach the cipher service (HTTP 500). Is the API running?",
+      "Could not reach the cipher service (HTTP 500). Is the API running?"
     )
   })
 
   it("reports a response whose result is not a string", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ result: 42 }))
-    await expect(encodeText("x")).rejects.toThrow("The server returned a malformed response.")
+    await expect(encodeText("x")).rejects.toThrow(
+      "The server returned a malformed response."
+    )
   })
 
   it("reports a response with no result field", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}))
-    await expect(encodeText("x")).rejects.toThrow("The server returned a malformed response.")
+    await expect(encodeText("x")).rejects.toThrow(
+      "The server returned a malformed response."
+    )
   })
 })
 
@@ -130,7 +152,9 @@ describe("configuration", () => {
     fetchMock.mockResolvedValue(jsonResponse({ result: "Zubat" }))
     await configured.encodeText("H")
 
-    expect(fetchMock.mock.calls[0][0]).toBe("https://cipher.example.com/api/encode")
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://cipher.example.com/api/encode"
+    )
   })
 
   it("reads the input cap from NEXT_PUBLIC_MAX_TEXT_CHARS", async () => {
@@ -159,12 +183,28 @@ describe("isWithinLimit", () => {
   })
 })
 
-
-const KNOWN = new Set(["zubat", "weepinbell", "ponyta", "gyarados", "slowbro", "farfetch'd"])
+const KNOWN: Vocabulary = {
+  names: new Set([
+    "zubat",
+    "weepinbell",
+    "ponyta",
+    "gyarados",
+    "slowbro",
+    "farfetch'd",
+  ]),
+  folds: {
+    "\u2019": "'",
+    "\u2018": "'",
+    "\u00b4": "'",
+    "\u2013": "-",
+    "\u2014": "-",
+  },
+}
+const EMPTY: Vocabulary = { names: new Set(), folds: {} }
 
 describe("looksLikeCiphertext", () => {
   it("is false before the name list has loaded", () => {
-    expect(looksLikeCiphertext("Zubat Weepinbell", new Set())).toBe(false)
+    expect(looksLikeCiphertext("Zubat Weepinbell", EMPTY)).toBe(false)
   })
 
   it("accepts a single name, which is legitimate ciphertext", () => {
@@ -188,9 +228,9 @@ describe("looksLikeCiphertext", () => {
 
   it("tolerates surrounding and repeated whitespace", () => {
     expect(looksLikeCiphertext("   Zubat   Weepinbell  ", KNOWN)).toBe(true)
-    expect(looksLikeCiphertext(["", "Zubat"].join(String.fromCharCode(10)), KNOWN)).toBe(
-      true
-    )
+    expect(
+      looksLikeCiphertext(["", "Zubat"].join(String.fromCharCode(10)), KNOWN)
+    ).toBe(true)
   })
 
   it("is false for empty or whitespace-only input", () => {
@@ -205,6 +245,16 @@ describe("looksLikeCiphertext", () => {
   it("handles a name carrying an apostrophe", () => {
     expect(looksLikeCiphertext("Farfetch'd Zubat", KNOWN)).toBe(true)
   })
+
+  it("accepts the typographic spelling the server folds", () => {
+    // Smart quotes are what a phone or a chat client produces; the server decodes
+    // them, so the gate must not be the thing that refuses.
+    expect(looksLikeCiphertext("Farfetch\u2019d Zubat", KNOWN)).toBe(true)
+  })
+
+  it("still refuses a spelling neither side accepts", () => {
+    expect(looksLikeCiphertext("Farfetch\u00a7d Zubat", KNOWN)).toBe(false)
+  })
 })
 
 describe("countKnownNames", () => {
@@ -213,7 +263,7 @@ describe("countKnownNames", () => {
   })
 
   it("is zero before the list loads", () => {
-    expect(countKnownNames("Zubat", new Set())).toBe(0)
+    expect(countKnownNames("Zubat", EMPTY)).toBe(0)
   })
 
   it("ignores case and extra whitespace", () => {
@@ -221,14 +271,54 @@ describe("countKnownNames", () => {
   })
 })
 
+describe("foldToken", () => {
+  it("lowercases and applies the served table", () => {
+    expect(foldToken("Farfetch\u2019d", KNOWN.folds)).toBe("farfetch'd")
+  })
+
+  it("leaves a character it has no rule for alone", () => {
+    expect(foldToken("Zubat", {})).toBe("zubat")
+  })
+
+  it("is idempotent, so a folded token folds to itself", () => {
+    expect(
+      foldToken(foldToken("Nidoran\u2013F", KNOWN.folds), KNOWN.folds)
+    ).toBe("nidoran-f")
+  })
+})
+
 describe("fetchKnownNames", () => {
   it("lowercases the served names into a set", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ names: ["Zubat", "Ponyta"] }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ names: ["Zubat", "Ponyta"] }))
     vi.stubGlobal("fetch", fetchMock)
-    const names = await fetchKnownNames()
+    const { names } = await fetchKnownNames()
     expect(names.has("zubat")).toBe(true)
     expect(names.has("ponyta")).toBe(true)
     expect(names.size).toBe(2)
+  })
+
+  it("carries the fold table the server sent", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ names: ["Zubat"], folds: { "\u2019": "'" } })
+        )
+    )
+    const { folds } = await fetchKnownNames()
+    expect(folds["\u2019"]).toBe("'")
+  })
+
+  it("treats a missing fold table as no folds rather than failing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ names: ["Zubat"] }))
+    )
+    const { folds } = await fetchKnownNames()
+    expect(folds).toEqual({})
   })
 
   it("throws a PokeCipherError on a non-ok response", async () => {
@@ -237,7 +327,10 @@ describe("fetchKnownNames", () => {
   })
 
   it("throws when the payload is malformed", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ names: "nope" })))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ names: "nope" }))
+    )
     await expect(fetchKnownNames()).rejects.toBeInstanceOf(PokeCipherError)
   })
 })

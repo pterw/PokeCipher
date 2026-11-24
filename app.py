@@ -43,6 +43,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pokecipher import NAME_INDEX, decode_report, encode_message
+from pokecipher.pokedex import TYPOGRAPHIC_FOLDS
 
 MAX_BODY_BYTES = 32 * 1024
 
@@ -145,11 +146,16 @@ async def names() -> JSONResponse:
     here, never copied into TypeScript, so changing the dex reaches the UI without
     a second edit.
 
+    ``folds`` — the typographic punctuation the decoder folds before matching —
+    travels with it for the same reason. The decoder accepts ``Farfetch\u2019d``;
+    a gate that only lowercased would refuse to start that decode. Shipping the
+    table rather than restating it in TypeScript means the two cannot disagree.
+
     Cached for an hour. The payload is ~1.8 KB and only changes when the Pokédex
     does, which is a deploy.
     """
     return JSONResponse(
-        {"names": sorted(NAME_INDEX)},
+        {"names": sorted(NAME_INDEX), "folds": TYPOGRAPHIC_FOLDS},
         headers={"Cache-Control": "public, max-age=3600"},
     )
 

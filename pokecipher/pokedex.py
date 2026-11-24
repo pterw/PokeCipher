@@ -158,9 +158,21 @@ NAME_INDEX: dict[PokemonName, list[tuple[str, int]]] = build_name_index(REGIONS,
 #: Characters a keyboard or chat client may substitute for the ASCII ones that
 #: appear in a name. Three names carry punctuation and one of them - Farfetch'd -
 #: contains the apostrophe that smart-quote substitution rewrites.
-_TYPOGRAPHIC_FOLDS = str.maketrans(
-    {"\u2019": "'", "\u2018": "'", "\u00b4": "'", "\u2013": "-", "\u2014": "-"}
-)
+#: The typographic characters that chat clients, mobile keyboards and word
+#: processors substitute for the ASCII ones a name is stored with, mapped onto the
+#: spelling the dex uses. Public because ``/api/names`` serves it alongside the
+#: name list: the frontend's decode gate has to accept exactly the spellings the
+#: decoder accepts, and a fold table copied into TypeScript would drift from this
+#: one the first time either side changed.
+TYPOGRAPHIC_FOLDS: dict[str, str] = {
+    "\u2019": "'",
+    "\u2018": "'",
+    "\u00b4": "'",
+    "\u2013": "-",
+    "\u2014": "-",
+}
+
+_FOLD_TABLE = str.maketrans(TYPOGRAPHIC_FOLDS)
 
 
 def fold_name(name: str) -> str:
@@ -172,7 +184,7 @@ def fold_name(name: str) -> str:
     produces one canonical spelling, and the decoder should still recognise the
     text a person actually pastes.
     """
-    return name.casefold().translate(_TYPOGRAPHIC_FOLDS)
+    return name.casefold().translate(_FOLD_TABLE)
 
 
 def build_folded_index(

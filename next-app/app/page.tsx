@@ -10,6 +10,7 @@ import { Switch as BitSwitch } from "@/components/ui/8bit/switch"
 import { BitTextarea } from "@/components/ui/8bit/textarea"
 import { splitMarkers } from "@/lib/markers"
 import {
+  EMPTY_VOCABULARY,
   MAX_TEXT_CHARS,
   PokeCipherError,
   countKnownNames,
@@ -18,6 +19,7 @@ import {
   fetchKnownNames,
   isWithinLimit,
   looksLikeCiphertext,
+  type Vocabulary,
 } from "@/lib/pokecipher-api"
 import { cn } from "@/lib/utils"
 
@@ -30,8 +32,10 @@ const MARKER_CLASS: Record<string, string> = {
 }
 
 const MARKER_LEGEND: Record<string, string> = {
-  ambiguous: "Amber marks genuine ambiguity: several characters are valid there.",
-  mismatch: "Red marks a state mismatch: that token may not belong to this message.",
+  ambiguous:
+    "Amber marks genuine ambiguity: several characters are valid there.",
+  mismatch:
+    "Red marks a state mismatch: that token may not belong to this message.",
   unknown: "Blue marks a name the Pokédex does not contain.",
 }
 
@@ -51,14 +55,10 @@ export default function Page() {
   const [truncated, setTruncated] = useState(false)
   const [copied, setCopied] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [knownNames, setKnownNames] = useState<Set<string>>(new Set())
-  // Whether the vocabulary actually arrived. Only a loaded dex can tell
-  // ciphertext from plain text, so only a loaded dex may drive the shortcut's
-  // choice of mode. Failure counts as not ready: guessing wrong there means
-  // silently encoding the ciphertext the user meant to decode.
-  const [gateReady, setGateReady] = useState(false)
+  const [vocabulary, setVocabulary] = useState<Vocabulary>(EMPTY_VOCABULARY)
+
   // Why the vocabulary is missing, when it is. Without this the status line
-  // reports a failed fetch as "Not Pokemon names", which blames the text the
+  // reports a failed fetch as "Not Pokémon names", which blames the text the
   // user pasted for a service that never answered.
   const [gateError, setGateError] = useState(false)
 
@@ -68,10 +68,9 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false
     fetchKnownNames()
-      .then((names) => {
+      .then((loaded) => {
         if (cancelled) return
-        setKnownNames(names)
-        setGateReady(true)
+        setVocabulary(loaded)
       })
       .catch((err) => {
         console.error("Failed to fetch Pokédex names for decode gate:", err)
@@ -82,11 +81,16 @@ export default function Page() {
     }
   }, [])
 
-  const canDecode = looksLikeCiphertext(input, knownNames)
+  // Wait for the vocabulary before the shortcut guesses a mode: only a loaded dex
+  // can tell ciphertext from plain text, and guessing wrong encodes the ciphertext
+  // the user meant to decode, which is the one mistake they cannot see in the
+  // output. Absent names mean the fetch failed, which counts as not ready.
+  const gateReady = vocabulary.names.size > 0
+  const canDecode = looksLikeCiphertext(input, vocabulary)
   const hasInput = input.trim().length > 0
   const tooLong = !isWithinLimit(input)
   const busy = pending !== null
-  const recognised = countKnownNames(input, knownNames)
+  const recognised = countKnownNames(input, vocabulary)
 
   async function run(targetMode: Mode) {
     if (!hasInput) {
@@ -169,17 +173,23 @@ export default function Page() {
        chrome. dvh tracks the real, current viewport. */
     <div className="flex min-h-dvh flex-col">
       <CliHero />
-      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-2 px-4 sm:px-6 pt-0 pb-[clamp(1rem,3vh,2rem)]">
-        <header className="mt-2 mb-1 flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-2 px-4 pt-0 pb-[clamp(1rem,3vh,2rem)] sm:px-6">
+        <header className="mt-2 mb-1 flex flex-col justify-between gap-1 sm:flex-row sm:items-end">
           <div>
             <h2 className="font-pixel text-xl tracking-[0.02em] text-foreground [text-shadow:3px_3px_0_#000000]">
               Encode &amp; Decode
             </h2>
             <p className="mt-1 font-terminal text-lg leading-[1.35] text-muted-foreground short:text-base">
-              Each repeated character cycles through the Kanto, Johto and Hoenn dexes.
+              Each repeated character cycles through the Kanto, Johto and Hoenn
+              dexes.
             </p>
           </div>
-          <span className={cn("font-terminal text-base select-none shrink-0", tooLong ? "text-marker-mismatch" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "shrink-0 font-terminal text-base select-none",
+              tooLong ? "text-marker-mismatch" : "text-muted-foreground"
+            )}
+          >
             {input.length} / {MAX_TEXT_CHARS}
           </span>
         </header>
@@ -210,9 +220,9 @@ export default function Page() {
           />
         </section>
 
-        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-0.5">
+        <section className="flex flex-col justify-between gap-2.5 pt-0.5 sm:flex-row sm:items-center">
           {/* Action buttons (Encode, Decode, Swap, Copy, Clear) */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             <BitButton
               variant="yellow"
               onClick={() => run("encode")}
@@ -230,22 +240,16 @@ export default function Page() {
               variant="secondary"
               onClick={() => canDecode && run("decode")}
               aria-disabled={!canDecode || busy}
-              className={cn((!canDecode || busy) && "cursor-not-allowed opacity-40")}
+              className={cn(
+                (!canDecode || busy) && "cursor-not-allowed opacity-40"
+              )}
             >
               {pending === "decode" ? "Decoding..." : "Decode"}
             </BitButton>
-            <BitButton
-              variant="outline"
-              onClick={swap}
-              disabled={!result}
-            >
+            <BitButton variant="outline" onClick={swap} disabled={!result}>
               Swap
             </BitButton>
-            <BitButton
-              variant="outline"
-              onClick={copy}
-              disabled={!result}
-            >
+            <BitButton variant="outline" onClick={copy} disabled={!result}>
               {copied ? "Copied!" : "Copy"}
             </BitButton>
             <BitButton
@@ -258,8 +262,13 @@ export default function Page() {
           </div>
 
           {/* View toggle (Names <-> Sprites) */}
-          <div className="flex items-center justify-end sm:justify-start gap-2 self-end sm:self-center select-none font-pixel text-xs shrink-0 py-0.5">
-            <span className={cn("transition-colors", !showSprites ? "text-poke-yellow" : "text-muted-foreground")}>
+          <div className="flex shrink-0 items-center justify-end gap-2 self-end py-0.5 font-pixel text-xs select-none sm:justify-start sm:self-center">
+            <span
+              className={cn(
+                "transition-colors",
+                !showSprites ? "text-poke-yellow" : "text-muted-foreground"
+              )}
+            >
               Names
             </span>
             <BitSwitch
@@ -268,7 +277,12 @@ export default function Page() {
               onCheckedChange={setShowSprites}
               aria-label="Toggle sprites view"
             />
-            <span className={cn("transition-colors", showSprites ? "text-poke-yellow" : "text-muted-foreground")}>
+            <span
+              className={cn(
+                "transition-colors",
+                showSprites ? "text-poke-yellow" : "text-muted-foreground"
+              )}
+            >
               Sprites
             </span>
           </div>
@@ -283,7 +297,10 @@ export default function Page() {
           when a message arrives.
         */}
         <div className="flex min-h-[3.25rem] flex-col justify-start gap-0.5 short:min-h-[3rem]">
-          <p className="font-terminal text-lg text-foreground" aria-live="polite">
+          <p
+            className="font-terminal text-lg text-foreground"
+            aria-live="polite"
+          >
             {!hasInput
               ? "Type text to encode, or paste Pokémon names to decode."
               : canDecode
@@ -294,7 +311,10 @@ export default function Page() {
           </p>
 
           {error ? (
-            <p className="font-terminal text-lg text-marker-mismatch" role="alert">
+            <p
+              className="font-terminal text-lg text-marker-mismatch"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -313,16 +333,20 @@ export default function Page() {
                 showSprites ? (
                   <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     {result.split(" ").map((name, index) => (
-                      <PokemonToken key={index} name={name} showSprites={true} />
+                      <PokemonToken
+                        key={index}
+                        name={name}
+                        showSprites={true}
+                      />
                     ))}
                   </div>
                 ) : (
-                  <p className="leading-relaxed text-foreground select-all break-words font-terminal text-xl">
+                  <p className="font-terminal text-xl leading-relaxed break-words text-foreground select-all">
                     {result}
                   </p>
                 )
               ) : (
-                <div className="leading-relaxed select-all break-words font-terminal text-xl">
+                <div className="font-terminal text-xl leading-relaxed break-words select-all">
                   {splitMarkers(result).map((piece, index) => (
                     <span
                       key={index}
@@ -343,9 +367,13 @@ export default function Page() {
             )}
           </BitCard>
           {result && mode === "decode" && truncated ? (
-            <p className="font-terminal text-base text-marker-ambiguous" role="status">
-              This message exceeded the decoder&apos;s search budget, so some characters may be
-              wrong. Decode a shorter message for an exact answer.
+            <p
+              className="font-terminal text-base text-marker-ambiguous"
+              role="status"
+            >
+              This message exceeded the decoder&apos;s search budget, so some
+              characters may be wrong. Decode a shorter message for an exact
+              answer.
             </p>
           ) : null}
           {result &&
@@ -353,7 +381,10 @@ export default function Page() {
             [...markerKinds]
               .filter((kind) => kind in MARKER_LEGEND)
               .map((kind) => (
-                <p key={kind} className="font-terminal text-base text-muted-foreground">
+                <p
+                  key={kind}
+                  className="font-terminal text-base text-muted-foreground"
+                >
                   {MARKER_LEGEND[kind]}
                 </p>
               ))}

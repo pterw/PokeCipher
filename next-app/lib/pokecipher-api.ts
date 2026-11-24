@@ -33,7 +33,10 @@ interface Payload {
   truncated: boolean
 }
 
-async function call(endpoint: "encode" | "decode", text: string): Promise<Payload> {
+async function call(
+  endpoint: "encode" | "decode",
+  text: string
+): Promise<Payload> {
   const response = await fetch(`${API_BASE}/api/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -45,7 +48,7 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<Payloa
     payload = await response.json()
   } catch {
     throw new PokeCipherError(
-      `Could not reach the cipher service (HTTP ${response.status}). Is the API running?`,
+      `Could not reach the cipher service (HTTP ${response.status}). Is the API running?`
     )
   }
 
@@ -68,7 +71,41 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<Payloa
 }
 
 /**
- * Fetch every Pokémon name the decoder accepts, case-folded for lookup.
+ * The decoder's vocabulary: every name it accepts, plus the punctuation it folds
+ * before matching.
+ *
+ * Both halves come from `/api/names` in one response, because the gate has to
+ * accept exactly the spellings the server accepts. A fold table restated in
+ * TypeScript would drift from the server's the first time either side changed,
+ * and the symptom would be silent: a paste the API would have decoded, refused by
+ * the page before it could ask.
+ */
+export interface Vocabulary {
+  names: Set<string>
+  folds: Record<string, string>
+}
+
+/** The vocabulary before the list has loaded: the gate stays shut on it. */
+export const EMPTY_VOCABULARY: Vocabulary = { names: new Set(), folds: {} }
+
+/**
+ * Fold a token the way the server does before matching it against a name.
+ *
+ * Case first, then the served punctuation table, so `Farfetch’d` reaches
+ * `Farfetch'd` exactly as `pokedex.fold_name` does.
+ */
+export function foldToken(
+  token: string,
+  folds: Record<string, string>
+): string {
+  const lowered = token.toLowerCase()
+  let folded = ""
+  for (const character of lowered) folded += folds[character] ?? character
+  return folded
+}
+
+/**
+ * Fetch every Pokémon name the decoder accepts, and the folds it applies first.
  *
  * The decode control is gated on whether the input actually looks like
  * ciphertext, which cannot be judged without this set. It is fetched rather than
@@ -77,16 +114,32 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<Payloa
  *
  * Roughly 2 KB, served with a one-hour Cache-Control, fetched once per mount.
  */
-export async function fetchKnownNames(): Promise<Set<string>> {
+export async function fetchKnownNames(): Promise<Vocabulary> {
   const response = await fetch(`${API_BASE}/api/names`)
   if (!response.ok) {
-    throw new PokeCipherError(`Could not load the Pokémon list (HTTP ${response.status}).`)
+    throw new PokeCipherError(
+      `Could not load the Pokémon list (HTTP ${response.status}).`
+    )
   }
-  const payload = (await response.json()) as { names?: unknown }
+  const payload = (await response.json()) as {
+    names?: unknown
+    folds?: unknown
+  }
   if (!Array.isArray(payload.names)) {
     throw new PokeCipherError("The server returned a malformed name list.")
   }
-  return new Set(payload.names.map((name) => String(name).toLowerCase()))
+  const folds: Record<string, string> = {}
+  if (payload.folds && typeof payload.folds === "object") {
+    for (const [from, to] of Object.entries(
+      payload.folds as Record<string, unknown>
+    )) {
+      if (typeof to === "string") folds[from] = to
+    }
+  }
+  return {
+    names: new Set(payload.names.map((name) => String(name).toLowerCase())),
+    folds,
+  }
 }
 
 /**
@@ -98,19 +151,29 @@ export async function fetchKnownNames(): Promise<Set<string>> {
  * required, because a lone name is legitimate ciphertext — `Zubat` decodes to
  * `H` — and demanding two or three would lock out every short message.
  *
- * Returns false while `known` is empty, i.e. before the list has loaded, so the
- * control stays shut rather than briefly permitting a call that would fail.
+ * Returns false while the vocabulary is empty, i.e. before the list has loaded, so
+ * the control stays shut rather than briefly permitting a call that would fail.
  */
-export function looksLikeCiphertext(text: string, known: Set<string>): boolean {
-  if (known.size === 0) return false
+export function looksLikeCiphertext(
+  text: string,
+  vocabulary: Vocabulary
+): boolean {
+  if (vocabulary.names.size === 0) return false
   const [first] = text.trim().split(/\s+/, 1)
-  return Boolean(first) && known.has(first.toLowerCase())
+  return (
+    Boolean(first) && vocabulary.names.has(foldToken(first, vocabulary.folds))
+  )
 }
 
 /** How many whitespace-separated tokens in `text` are known Pokémon names. */
-export function countKnownNames(text: string, known: Set<string>): number {
-  if (known.size === 0) return 0
-  return text.split(/\s+/).filter((token) => token && known.has(token.toLowerCase())).length
+export function countKnownNames(text: string, vocabulary: Vocabulary): number {
+  if (vocabulary.names.size === 0) return 0
+  return text
+    .split(/\s+/)
+    .filter(
+      (token) =>
+        token && vocabulary.names.has(foldToken(token, vocabulary.folds))
+    ).length
 }
 
 /** Encode plaintext into a space-separated sequence of Pokémon names. */

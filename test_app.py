@@ -51,6 +51,18 @@ class NamesEndpointTests(unittest.TestCase):
         names = response.json()["names"]
         self.assertEqual(names, sorted(NAME_INDEX))
 
+    def test_ships_the_folds_the_decoder_applies(self) -> None:
+        """The gate has to accept exactly the spellings the decoder accepts.
+
+        Restating the fold table in TypeScript would drift; serving it makes the
+        page's tolerance and the server's identical by construction.
+        """
+        from pokecipher.pokedex import TYPOGRAPHIC_FOLDS
+
+        folds = client.get("/api/names").json()["folds"]
+        self.assertEqual(folds, TYPOGRAPHIC_FOLDS)
+        self.assertEqual(folds["\u2019"], "'")
+
     def test_is_cacheable(self) -> None:
         """The list only changes on deploy, so it must not be refetched per keystroke."""
         response = client.get("/api/names")

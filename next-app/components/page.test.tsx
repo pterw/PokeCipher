@@ -6,21 +6,28 @@ import userEvent from "@testing-library/user-event"
 import Page from "@/app/page"
 
 /**
- * The page's own failure modes: the two the cipher can hand it, and the one it
+ * The page's own failure modes: the three the cipher can hand it, and the one it
  * can cause itself.
  *
  * These run against a stubbed API rather than a live server so the suite stays
  * hermetic; the Python half is covered by test_app.py. jsdom is enough because
- * nothing here measures layout — the assertions are about what a user is told.
+ * nothing here measures layout — every assertion is about what a user is told,
+ * addressed by the text or the role the user would perceive, never by a class.
  */
 
-// React 19 reads this flag to decide whether act() warnings apply to a render
-// it did not start. The tests are the only driver here, so it is always true.
+// React 19 reads this flag to decide whether act() warnings apply to a render it
+// did not start. The tests are the only driver here, so it is always true.
 ;(
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true
 
-const NAMES = ["Zubat", "Weepinbell", "Ponyta"]
+const FOLDS = {
+  "\u2019": "'",
+  "\u2018": "'",
+  "\u00b4": "'",
+  "\u2013": "-",
+  "\u2014": "-",
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -46,7 +53,14 @@ function stubApi({ names, encode, decode }: ApiStub): void {
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.endsWith("/api/names")) {
-      return names ? names() : Promise.resolve(jsonResponse({ names: NAMES }))
+      return names
+        ? names()
+        : Promise.resolve(
+            jsonResponse({
+              names: ["Zubat", "Weepinbell", "Farfetch'd"],
+              folds: FOLDS,
+            })
+          )
     }
     const { text = "" } = JSON.parse(String(init?.body ?? "{}")) as {
       text?: string
@@ -60,10 +74,17 @@ function stubApi({ names, encode, decode }: ApiStub): void {
   })
 }
 
-const resultCard = () => document.querySelector(".min-h-20") as HTMLElement
-const statusLine = () =>
-  document.querySelector('[aria-live="polite"]') as HTMLElement
-const budgetWarning = () => screen.queryByText(/search budget/)
+/**
+ * Wait until the page shows `text` somewhere.
+ *
+ * Decoded output is rendered token by token so `[x,y]` markers can be styled, so a
+ * result like `Hello W[n,o]rld!` is several elements wide and no single node holds
+ * it. Asserting on the document's text keeps the check on what a user reads
+ * without pinning the markup that produces it.
+ */
+async function expectText(text: string): Promise<void> {
+  await waitFor(() => expect(document.body.textContent).toContain(text))
+}
 
 /** Type into the textarea and press a button by its accessible name. */
 async function useTool(text: string, button: RegExp) {
@@ -90,37 +111,32 @@ describe("the tool's failure modes", () => {
     })
     await useTool("Zubat", /^Decode$/)
 
-    await waitFor(() =>
-      expect(resultCard().textContent).toContain("hello wnrld")
+    await expectText("hello wnrld")
+    expect(screen.getByText(/search budget/).getAttribute("role")).toBe(
+      "status"
     )
-    expect(budgetWarning()).not.toBeNull()
-    expect(budgetWarning()?.getAttribute("role")).toBe("status")
   })
 
   it("stays quiet when the decode was exact", async () => {
     stubApi({ decode: () => ({ body: { result: "Hello W[n,o]rld!" } }) })
     await useTool("Zubat", /^Decode$/)
 
-    await waitFor(() =>
-      expect(resultCard().textContent).toContain("Hello W[n,o]rld!")
-    )
-    expect(budgetWarning()).toBeNull()
+    await expectText("Hello W[n,o]rld!")
+    expect(screen.queryByText(/search budget/)).toBeNull()
   })
 
   it("blames the service, not the input, when the name list never loads", async () => {
-    // The page logs the failure as well as showing it; silence the log here so a
+    // The page logs the failure as well as showing it; silence the log so a
     // failing fetch is visible in the output only when the assertion fails.
     const logged = vi.spyOn(console, "error").mockImplementation(() => {})
     stubApi({ names: () => Promise.reject(new Error("offline")) })
 
     await useTool("Zubat", /^Encode$/)
 
-    await waitFor(() =>
-      expect(statusLine().textContent).toContain(
-        "Could not load the Pokémon list"
-      )
-    )
-    expect(statusLine().textContent).not.toContain("Not Pokémon names")
+    expect(
+      await screen.findByText(/Could not load the Pokémon list/)
+    ).toBeTruthy()
+    expect(screen.queryByText(/Not Pokémon names/)).toBeNull()
     expect(logged).toHaveBeenCalled()
     logged.mockRestore()
   })
@@ -131,10 +147,17 @@ describe("the tool's failure modes", () => {
 
     await useTool("Zubat", /^Encode$/)
 
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain(message)
-    )
+    expect((await screen.findByRole("alert")).textContent).toContain(message)
     // A rejected encode leaves the previous result alone rather than clearing it.
-    expect(resultCard().textContent).toContain("will appear here")
+    expect(screen.getByText(/will appear here/)).toBeTruthy()
+  })
+
+  it("opens the decode gate for the spelling the server folds", async () => {
+    // The server decodes a smart apostrophe; the page must not be the thing that
+    // refuses to send it.
+    stubApi({ decode: () => ({ body: { result: "farfetch" } }) })
+    await useTool("Farfetch\u2019d Zubat", /^Decode$/)
+
+    await expectText("farfetch")
   })
 })
