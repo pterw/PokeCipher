@@ -104,6 +104,17 @@ npm ci
 npm run dev               # http://localhost:3000
 ```
 
+Run `npm ci` before starting the dev server, not while it is running: it replaces
+`node_modules`, and a dev server that loses it mid-flight dies with a confusing
+workspace-root error.
+
+If you reach the dev server through a proxy or a hosted workspace rather than
+`localhost`, add that host to `allowedDevOrigins` in `next.config.ts`, or set
+`NEXT_ALLOWED_DEV_ORIGINS` (comma-separated). Without it Next serves the HTML with
+200 and then refuses every `/_next/static/*` request with 403, so the page loads
+unstyled and inert — which looks like a broken build rather than a rejected
+origin.
+
 ## Deployment
 
 Deployed on Vercel as **two projects from this repository**, because a single
