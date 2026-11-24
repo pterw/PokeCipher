@@ -57,8 +57,11 @@ the Johto list.
 
 Decoding forks one hypothesis per candidate character and merges hypotheses that
 reconverge, so a later Pokémon often resolves an earlier ambiguity after the
-fact — `Nidoking Geodude Shroomish Nidoking` decodes cleanly to `AAAA`, even
-though `Geodude` on its own is ambiguous.
+fact — `Nidoking Geodude Shroomish Nidoking` decodes cleanly to `AAAA`.
+`Nidoking Geodude` on its own is ambiguous (`A[A,i]`), because `Geodude` means
+`i` to Kanto and a second `A` to Johto, and both are legal there. The following
+`Shroomish` is only an `A`, in Hoenn, so it kills the `i` branch and resolves the
+earlier position.
 
 ## Architecture
 

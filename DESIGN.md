@@ -13,7 +13,7 @@ colors:
   terminal-void: "#071a07"
   cartridge-yellow: "#ffd100"
   signal-amber: "#e8b93b"
-  signal-coral: "#e0674f"
+  signal-coral: "oklch(0.75 0.20 25)"
   signal-ice: "#7fb3d5"
   alert-rust: "#b03a2e"
   alert-parchment: "#f5e6d7"
@@ -160,8 +160,12 @@ signal colours reserved for decoder semantics.
 These three are semantic, not decorative. They encode what the decoder knows.
 
 - **Signal Amber** (`#e8b93b`): genuine ambiguity, the `[x,y]` marker.
-- **Signal Coral** (`#e0674f`): state mismatch, the `{x,y}` marker. **Fails
-  contrast at 3.41:1 on card and 3.91:1 on ground; needs raising.**
+- **Signal Coral** (`oklch(0.75 0.20 25)`, gamut-mapped to about `#ff847d`):
+  state mismatch, the `{x,y}` marker. It also provides `--destructive`. The
+  earlier value in this document, `#e0674f`, failed AA at 3.41:1 on card; the
+  shipped token measures about 4.85:1 on card and 5.56:1 on the ground, so the
+  failure is closed. Re-measured 2026-11-24 against `app/globals.css`, which is
+  the implementation of record if this file and the stylesheet ever disagree.
 - **Signal Ice** (`#7fb3d5`): unknown token. The only cool colour in the system,
   which is appropriate — an unrecognised name is outside the cipher entirely.
 
@@ -313,10 +317,10 @@ transcript body.
   The hero scrim is `from-background/10 via-background/35 to-background`, so the
   backdrop sits at 90% strength behind the wordmark — that is why no palette
   colour survives there and why the hard pixel-offset shadow was needed at all.
-- **Open, related:** the transcript's opening line reads `encode "Try below"`,
-  which points the visitor downward while the terminal itself accepts typed
-  input. The copy and the affordance contradict each other, and which surface is
-  canonical is still undecided.
+- **Settled since:** the transcript used to accept input while its opening line
+  pointed the visitor downward (`encode "Try below"`). It is now a static
+  explainer whose first line is `help --cipher`, so the contradiction and the
+  "which surface is canonical" question both closed with it.
 - **Absolutely not:** three red/amber/green dots in the chrome bar. They tell the
   user nothing, clash with the palette, and fill space for its own sake.
 
@@ -384,5 +388,8 @@ truth.
 - **Don't** reuse a decoder signal colour for anything that is not a decoder
   state.
 - **Don't** set body copy in Press Start 2P.
-- **Don't** ship `#e0674f`, `#b03a2e`, or `#9bbc8a`-on-`#265626` at their current
-  contrast; all three fail AA where they are used.
+- **Don't** set `#9bbc8a` (`--muted-foreground`) on `#265626` (`--secondary`):
+  4.08:1, below the 4.5:1 normal-text threshold. Nothing does today; the chrome
+  bar puts `--foreground` there instead.
+- **Don't** reintroduce `#e0674f` or `#b03a2e`. The first was replaced by the
+  `oklch` signal token above; the second is not in the stylesheet at all.

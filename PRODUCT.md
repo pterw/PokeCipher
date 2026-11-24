@@ -137,13 +137,13 @@ feedback and does not handle a rejected clipboard permission.
 
 ### Open decisions
 
-- **Which surface is the canonical tool is undecided.** The page currently
-  carries two complete, independently working encode/decode clients: the CLI
-  terminal hero and the form beneath it. Whether the terminal is the product or
-  a demo has not been settled, and most layout decisions follow from it.
-  Related known defect: the terminal's opening line reads `encode "Try below"`,
-  which points the visitor downward while the terminal itself accepts input.
-  The affordance and the copy contradict each other.
+- **The canonical tool is the form; the hero explains.** The hero used to be a
+  second, working encode/decode client, which raised the question of which
+  surface was the product. It is now a static transcript that teaches the
+  algorithm and accepts no input, so the form beneath it is the only client and
+  most layout decisions follow from that. The old contradiction — an opening
+  line reading `encode "Try below"` in a terminal that accepted typing — is gone
+  with the input; its first line is now `help --cipher`.
 - **Pixel-art component library is unchosen.** Candidates the user raised, to be
   evaluated for compatibility (Tailwind v4 + React 19 + shadcn) and for the
   elements each actually provides: **pixelact-ui**
@@ -217,14 +217,19 @@ Real, verified, and safe to use:
   `Slowpoke` maps to both `n` (Kanto) and `o` (Johto) and nothing later
   disambiguates it.
 - Retroactive-resolution example: `Nidoking Geodude Shroomish Nidoking` decodes
-  cleanly to `AAAA`, though `Geodude` alone is ambiguous.
+  cleanly to `AAAA`. `Nidoking Geodude` alone decodes to `A[A,i]`: `Geodude`
+  means `i` in Kanto and a second `A` in Johto, and both are legal at that
+  point. `Shroomish` is only `A`, in Hoenn, so it kills the `i` branch. Note
+  `Geodude` by itself decodes to `i`, not to a marker — the ambiguity is
+  positional, not intrinsic to the name.
 - `Screenshot.png` (laptop, 1440x900) and `Screenshot-mobile.png` (phone,
   390x844) at the repository root.
-- Test suite: 206 Python tests (7,208 subtests) at 97% statement coverage; 46
-  frontend tests. Measured 2026-10-02; these counts drift silently, since
-  nothing verifies them against the suite. The timing assertions inside the
-  suite are wall-clock based, so a coverage-instrumented run (`pytest --cov`)
-  can trip the slowest one on a loaded machine even though a plain run passes.
+- Test suite: 235 Python tests (13,617 subtests); 49 frontend tests. Measured
+  2026-11-24 with `python -m pytest -q` and `npm run test`. These counts drift,
+  since nothing verifies them against the suite; re-measure rather than trusting
+  this line. The timing assertions that remain are wall-clock based and
+  generous, so a coverage-instrumented run (`pytest --cov`) on a loaded machine
+  can still approach them.
 
 No testimonials, users, customers, benchmarks, press, pricing or adoption
 figures exist. Future work must not fabricate any.
@@ -269,15 +274,23 @@ Confirmed contrast defects, measured against the incumbent tokens:
 | Usage | Colors | Ratio | Status |
 |---|---|---|---|
 | `bash` chrome label on hero | `#d7f5c4` on `#265626` | **7.27:1** | fixed 2026-08-29, was 4.08:1 |
-| Terminal `err` lines | `#b03a2e` on `#071a07` | **3.01:1** | fails |
-| Error panel text | `#e0674f` on `#0f380f` | **3.91:1** | fails |
-| `marker-mismatch` on card | `#e0674f` on `#14421a` | **3.41:1** | fails |
+| Error text and `marker-mismatch` | `oklch(0.75 0.20 25)` ≈ `#ff847d` on `#14421a` | **≈4.85:1** | passes AA, re-measured 2026-11-24 |
+| Error text on the page ground | same token on `#0f380f` | **≈5.56:1** | passes AA |
+
+`--destructive` and `--marker-mismatch` now resolve to the same `oklch` token,
+which gamut-maps to about `#ff847d` — the earlier rows here measured `#e0674f`
+(3.41:1 on card), a value the stylesheet no longer contains. `#b03a2e` is not in
+`globals.css` at all, so the "terminal err lines" row described a surface that no
+longer exists.
 
 The rest of the palette passes, several comfortably: body text 11.14:1, the
 yellow accent on terminal 12.39:1, `marker-ambiguous` on card 6.27:1,
 `marker-unknown` on card 5.11:1.
 
-The `marker-mismatch` contrast failure is a real defect and should be fixed.
+One pair to watch rather than ship: `#9bbc8a` (`--muted-foreground`) on `#265626`
+(`--secondary`) is 4.08:1, below the 4.5:1 normal-text threshold. Nothing places
+those two together today; the terminal chrome puts `--foreground` on
+`--secondary` instead.
 
 **Colour carrying meaning is not itself a defect here.** Per the user, this is a
 design judgment and no hard rule applies in either direction. Colour that
@@ -288,11 +301,12 @@ places. Decide it case by case on the merits; do not apply
 "never convey meaning by colour alone" as a blanket rule, and do not add
 explanatory tooltips to compensate for a mark that should have been legible.
 
-Live regions: the tool below the hero now announces its dynamic output — the
-result panel and the decode-gate status are `aria-live="polite"`, and the error
-panel is `role="alert"`. **The hero terminal is still silent**: its transcript
-appends command, output and error lines with nothing announced, which is the
-larger of the two surfaces for a screen-reader user.
+Live regions: the tool announces its dynamic output — the result panel and the
+decode-gate status are `aria-live="polite"`, the error panel is `role="alert"`,
+and the new branch-budget warning is `role="status"`. The hero transcript no
+longer appends anything, so the "hero is silent" gap closed when it stopped
+being an interactive client: its content is static text a screen reader reads in
+document order.
 
 The decode control is gated rather than error-handled. It is shaded and
 `aria-disabled` until the first whitespace-delimited token of the input is a

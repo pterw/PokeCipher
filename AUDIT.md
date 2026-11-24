@@ -1,3 +1,13 @@
+> **Superseded — read `LEDGER.md` and `AGENTS.md` instead.**
+>
+> This document audits the pre-rewrite tkinter application. The decoder defect it
+> calls critical in §2.1 ("state is abandoned after ambiguity") was fixed by the
+> fork/merge decoder in `pokecipher/decoder.py`, which is what the tests now pin;
+> §4's GUI findings describe a desktop window that no longer exists. It is kept
+> as a record of how the project got here, not as a description of the current
+> code. The live limitation is the branch budget, documented in `readme.md`
+> ("Known limitations") and pinned in `test_cipher_invariants.py`.
+
 # PokéCipher Audit — Findings, Improvements & Roadmap
 
 *A structured analysis of the current implementation, covering correctness issues, decoder
