@@ -113,11 +113,10 @@ The two display faces are vendored in `next-app/app/fonts`, so
 `npm run build` makes no network request and works offline.
 
 If you reach the dev server through a proxy or a hosted workspace rather than
-`localhost`, add that host to `allowedDevOrigins` in `next.config.ts`, or set
-`NEXT_ALLOWED_DEV_ORIGINS` (comma-separated). Without it Next serves the HTML with
-200 and then refuses every `/_next/static/*` request with 403, so the page loads
-unstyled and inert — which looks like a broken build rather than a rejected
-origin.
+`localhost`, add that host to `allowedDevOrigins` in `next.config.ts`. Without it
+Next serves the HTML with 200 and then refuses every `/_next/static/*` request
+with 403, so the page loads unstyled and inert, which looks like a broken build
+rather than a rejected origin.
 
 ## Deployment
 

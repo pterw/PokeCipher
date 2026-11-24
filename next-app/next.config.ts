@@ -43,16 +43,9 @@ const nextConfig: NextConfig = {
   // script and stylesheet it references comes back 403. The page then renders
   // unstyled and inert, which reads as a broken app rather than a rejected
   // origin. Hosted workspaces serve the dev server from a per-sandbox host
-  // (`<port>-<sandbox>.e2b.app`), so that family is allowed here, and
-  // NEXT_ALLOWED_DEV_ORIGINS covers any other proxy without a code change.
-  // Development only: this list is ignored by `next build` and `next start`.
-  allowedDevOrigins: [
-    "127.0.0.1",
-    "*.e2b.app",
-    ...(process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(",")
-      .map((host) => host.trim())
-      .filter(Boolean) ?? []),
-  ],
+  // (`<port>-<sandbox>.e2b.app`), so that family is listed; add any other proxy
+  // you use here. Development only: `next build` and `next start` ignore the list.
+  allowedDevOrigins: ["127.0.0.1", "*.e2b.app"],
 
   async rewrites() {
     const origin = API_ORIGIN || (ON_VERCEL ? "" : LOCAL_API_ORIGIN)
