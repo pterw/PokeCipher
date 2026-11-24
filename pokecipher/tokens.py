@@ -17,6 +17,12 @@ UNKNOWN_SUFFIX: str = ">"
 ERROR_PREFIX: str = "<?error encoding: "
 ERROR_SUFFIX: str = ">"
 
+#: Inclusive bounds of the Unicode surrogate range. Code points inside it are
+#: representable in a Python ``str`` but cannot be encoded as UTF-8, so they are
+#: not valid characters for a token to name.
+SURROGATE_MIN: int = 0xD800
+SURROGATE_MAX: int = 0xDFFF
+
 
 def format_char_token(code_point: int) -> str:
     """Render a non-printable character as a ``[CHAR:N]`` token."""
@@ -24,14 +30,25 @@ def format_char_token(code_point: int) -> str:
 
 
 def parse_char_token(token: str) -> str | None:
-    """Return the character a ``[CHAR:N]`` token encodes, or ``None`` if unparseable."""
+    """Return the character a ``[CHAR:N]`` token encodes, or ``None`` if unparseable.
+
+    Only Unicode *scalar* values are accepted. ``chr`` will happily build the
+    surrogate range 0xD800-0xDFFF, but those code points cannot be encoded as
+    UTF-8, so a token naming one would decode into a string no HTTP response can
+    serialise. Rejecting them here keeps the decoder total over its own
+    vocabulary, which is the property the rest of the package relies on.
+    """
     if not (token.startswith(CHAR_TOKEN_PREFIX) and token.endswith(CHAR_TOKEN_SUFFIX)):
         return None
     body = token[len(CHAR_TOKEN_PREFIX) : -len(CHAR_TOKEN_SUFFIX)]
     try:
-        return chr(int(body))
+        code_point = int(body)
+        character = chr(code_point)
     except ValueError:
         return None
+    if SURROGATE_MIN <= code_point <= SURROGATE_MAX:
+        return None
+    return character
 
 
 def format_unknown(token: str) -> str:

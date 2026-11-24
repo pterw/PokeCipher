@@ -88,6 +88,27 @@ async def http_error_handler(request: Request, exc: StarletteHTTPException) -> J
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
 
+def decode_surrogate_pairs(text: str) -> str:
+    """Join UTF-16 surrogate pairs and reject the unpaired ones.
+
+    JSON permits astral characters to be written as two escapes
+    (``"\\ud83d\\ude00"``), and ``json.loads`` keeps them as two lone surrogates
+    rather than one character. Re-encoding through UTF-16 puts the pair back
+    together, so a client that escapes properly is served correctly.
+
+    A genuinely unpaired surrogate cannot be encoded as UTF-8, so no response
+    could ever carry it back: the round trip through UTF-16 fails and the caller
+    sees a 400 instead of a 500 raised while serialising the reply.
+    """
+    try:
+        return text.encode("utf-16", "surrogatepass").decode("utf-16")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Field 'text' contains an unpaired surrogate and is not valid Unicode text.",
+        ) from exc
+
+
 async def read_text(request: Request) -> str:
     """Return the validated ``text`` field, or raise the matching HTTP error."""
     raw = await request.body()
@@ -109,7 +130,7 @@ async def read_text(request: Request) -> str:
         raise HTTPException(
             status_code=413, detail=f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."
         )
-    return text
+    return decode_surrogate_pairs(text)
 
 
 @app.get("/api/names")

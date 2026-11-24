@@ -180,6 +180,22 @@ class TestTokens(unittest.TestCase):
         self.assertIsNone(parse_char_token("[CHAR:"))
         self.assertIsNone(parse_char_token("[CHAR:9"))
 
+    def test_surrogate_char_token_does_not_parse(self):
+        """A code point in the surrogate range is not a character a token may name.
+
+        It is representable in a Python string but cannot be encoded as UTF-8, so
+        accepting it would decode into text no HTTP response could serialise.
+        """
+        for code in (0xD800, 0xDBFF, 0xDC00, 0xDFFF):
+            with self.subTest(code=code):
+                self.assertIsNone(parse_char_token(format_char_token(code)))
+
+    def test_out_of_range_char_token_returns_none(self):
+        """Code points beyond Unicode, and negative ones, do not parse."""
+        for body in ("1114112", "-1", "99999999"):
+            with self.subTest(body=body):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+
     def test_literals_for_special_tokens(self):
         """Special tokens decode to their literal characters."""
         self.assertEqual(literal_for(NEWLINE_TOKEN), "\n")

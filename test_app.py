@@ -219,5 +219,42 @@ class ContractAndBoundaryTests(unittest.TestCase):
         self.assertIsInstance(bad.json()["error"], str)
 
 
+class SurrogateHandlingTests(unittest.TestCase):
+    """Text that cannot be encoded as UTF-8 is refused, never half-processed."""
+
+    def test_decode_reports_an_unpaired_surrogate_token(self) -> None:
+        """[CHAR:55296] names a surrogate, so it renders as the invalid marker.
+
+        Before this was guarded the token decoded to a lone surrogate and the
+        response failed to serialise, returning 500 from a 13-byte request.
+        """
+        response = client.post("/api/decode", json={"text": "[CHAR:55296]"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["result"], "<?>")
+
+    def test_encode_rejects_a_lone_surrogate(self) -> None:
+        """A JSON-escaped unpaired surrogate is a client error, not a server crash."""
+        response = client.post(
+            "/api/encode",
+            content=b'{"text":"\\ud800"}',
+            headers={"content-type": "application/json"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("surrogate", response.json()["error"])
+
+    def test_encode_rejoins_an_escaped_surrogate_pair(self) -> None:
+        """A correctly escaped astral character travels as one code point."""
+        response = client.post(
+            "/api/encode",
+            content=b'{"text":"\\ud83d\\ude00"}',
+            headers={"content-type": "application/json"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["result"], "[CHAR:128512]")
+
+        decoded = client.post("/api/decode", json={"text": response.json()["result"]})
+        self.assertEqual(decoded.json()["result"], "😀")
+
+
 if __name__ == "__main__":
     unittest.main()
