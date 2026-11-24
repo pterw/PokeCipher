@@ -219,3 +219,14 @@ More to come.
 
 See [AGENTS.md](AGENTS.md) for the architecture rules, testing expectations, and
 deployment details that contributors and AI agents should follow.
+
+## License
+
+The source code in this repository is released under the [MIT License](LICENSE).
+
+Pokémon, the Pokémon names, and the sprite artwork are trademarks and
+copyrighted works of Nintendo, Game Freak, and Creatures Inc. They appear here
+descriptively, as the cipher's alphabet: this project is not affiliated with,
+endorsed by, or licensed by them, and the MIT license does not extend to those
+names or to any sprite art. The wordmark and favicon generators ship without the
+source sprite for the same reason.
