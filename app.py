@@ -42,7 +42,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pokecipher import NAME_INDEX, decode_message, encode_message
+from pokecipher import NAME_INDEX, decode_report, encode_message
 
 MAX_BODY_BYTES = 32 * 1024
 
@@ -163,7 +163,18 @@ async def encode(request: Request) -> dict[str, str]:
 
 
 @app.post("/api/decode")
-async def decode(request: Request) -> dict[str, str]:
-    """Decode a sequence of Pokémon names back into plaintext."""
+async def decode(request: Request) -> JSONResponse:
+    """Decode a sequence of Pokémon names back into plaintext.
+
+    ``truncated`` is added only when the decoder exceeded its branch budget, so
+    the response for every message that fits stays byte-identical to the
+    documented contract. When it is present, the text is best-effort: the
+    decoder dropped hypotheses, and a plain character may be wrong even though
+    nothing in the text says so. The frontend surfaces it as a warning.
+    """
     text = await read_text(request)
-    return {"result": await run_in_threadpool(decode_message, text)}
+    report = await run_in_threadpool(decode_report, text)
+    payload: dict[str, object] = {"result": report.text}
+    if report.truncated:
+        payload["truncated"] = True
+    return JSONResponse(payload)

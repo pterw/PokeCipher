@@ -219,6 +219,29 @@ class ContractAndBoundaryTests(unittest.TestCase):
         self.assertIsInstance(bad.json()["error"], str)
 
 
+class BranchBudgetResponseTests(unittest.TestCase):
+    """An over-budget decode says so; an in-budget one stays byte-identical."""
+
+    def test_decode_inside_the_budget_carries_only_result(self) -> None:
+        """The documented success shape is unchanged for ordinary messages."""
+        response = client.post("/api/decode", json={"text": "Zubat Weepinbell Ponyta"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"result"})
+
+    def test_over_budget_decode_is_flagged(self) -> None:
+        """A decode that dropped hypotheses is marked best-effort.
+
+        The text is still returned: the flag qualifies it, it does not replace it.
+        """
+        encoded = client.post(
+            "/api/encode", json={"text": "hello world this is a test of the cipher"}
+        ).json()["result"]
+        response = client.post("/api/decode", json={"text": encoded})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"result", "truncated"})
+        self.assertIs(response.json()["truncated"], True)
+
+
 class SurrogateHandlingTests(unittest.TestCase):
     """Text that cannot be encoded as UTF-8 is refused, never half-processed."""
 

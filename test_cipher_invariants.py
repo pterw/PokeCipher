@@ -29,6 +29,12 @@ positions (67 vs 58). A converged-first branch-selection policy was also tried
 and did not improve the loss rate. Fixing this properly needs a better state
 representation or an unbounded branch count, both outside this change's scope;
 the tests below pin the boundary so any future fix is deliberate and visible.
+
+The loss is no longer *silent*, though: ``decode_report`` returns the decoded
+text with a ``truncated`` flag set whenever a step overflowed, and
+:class:`BranchBudgetReportTests` pins the guarantee that matters — an unflagged
+decode is always a faithful reading. The indicator lives outside the text
+because marking it in-band desynchronises the counts (measured above).
 """
 
 from __future__ import annotations
@@ -42,9 +48,10 @@ from pokecipher import (
     MAX_DECODE_BRANCHES,
     NAME_INDEX,
     decode_message,
+    decode_report,
     encode_message,
 )
-from pokecipher.decoder import Branch, fork, literal_for
+from pokecipher.decoder import Branch, fork, literal_for, merge
 from pokecipher.pokedex import lookup_name
 from pokecipher.state import CharCounts
 from pokecipher.tokens import parse_char_token
@@ -84,6 +91,31 @@ def exceeds_branch_budget(encoded: str) -> bool:
     return False
 
 
+def over_budget(encoded: str) -> bool:
+    """True when decoding ``encoded`` would drop hypotheses at some step.
+
+    Mirrors ``decode_report``'s loop exactly, but stops at the first overflow: it
+    is the oracle the flag is compared against, so it must not simply call the
+    code under test.
+    """
+    branches = [Branch.start()]
+    for token in encoded.split():
+        if literal_for(token) is not None:
+            continue
+        mappings = lookup_name(token)
+        if mappings is None:
+            continue
+        merged = merge(branches, tuple(mappings))
+        if len(merged) > MAX_DECODE_BRANCHES:
+            return True
+        branches = list(merged.values())[:MAX_DECODE_BRANCHES] or [
+            branch.skipped() for branch in branches
+        ]
+        if len(branches) == 1:
+            branches = [Branch(branches[0].state)]
+    return False
+
+
 def read_marker(decoded: str, pos: int) -> tuple[list[str], int] | None:
     """Parse a ``[x,y]`` or ``{x,y}`` marker at ``pos`` grammar-wise.
 
@@ -117,7 +149,11 @@ def check_faithful(case: unittest.TestCase, plaintext: str) -> None:
     invariant — each position is either the original character or a marker
     listing it. Only valid inside the branch budget; see the module docstring.
     """
-    decoded = decode_message(encode_message(plaintext))
+    check_decoded_faithful(case, plaintext, decode_message(encode_message(plaintext)))
+
+
+def check_decoded_faithful(case: unittest.TestCase, plaintext: str, decoded: str) -> None:
+    """Assert ``decoded`` is one valid reading of ``plaintext``."""
     pos = 0
     for char in plaintext:
         with case.subTest(char=char, decoded=decoded):
@@ -281,6 +317,67 @@ class BranchCapTests(unittest.TestCase):
         """A token no branch can consume yields no follow-up branches."""
         # After one 'a', the next 'a' wants region 1; a region-0 mapping dies.
         self.assertEqual(fork([Branch.start().advanced("a")], (("a", 0),)), [])
+
+
+class BranchBudgetReportTests(unittest.TestCase):
+    """The budget flag is the contract that makes the limitation survivable.
+
+    ``decode_report`` must flag exactly the decodes that dropped hypotheses, and
+    a decode it does *not* flag must be a faithful reading. That is the property
+    a caller relies on: "no warning" has to mean "no lie".
+    """
+
+    def test_report_text_matches_decode_message(self):
+        """The flag never changes the decoded string."""
+        for message in ("", "Hi", "Hello World!", "test", "A" * 21):
+            with self.subTest(message=message):
+                encoded = encode_message(message)
+                self.assertEqual(decode_report(encoded).text, decode_message(encoded))
+
+    def test_short_messages_are_not_flagged(self):
+        """Every message inside the budget reports truncated=False."""
+        for message in ("Hello World!", "I don't know", "PokeCipher"):
+            with self.subTest(message=message):
+                self.assertFalse(decode_report(encode_message(message)).truncated)
+
+    def test_the_ui_example_sentence_is_flagged_and_wrong(self):
+        """A 40-character sentence exceeds the budget and decodes inexactly.
+
+        This is the shape of the defect the flag exists to expose: the decode is
+        confidently wrong, and only the flag distinguishes it from a decode that
+        is merely ambiguous.
+        """
+        message = "hello world this is a test of the cipher"
+        report = decode_report(encode_message(message))
+        self.assertTrue(report.truncated)
+        self.assertNotEqual(report.text, message)
+
+    def test_flag_matches_the_exact_overflow_condition(self):
+        """The flag is set exactly when a step produced more than the budget."""
+        rng = random.Random(0xB0D9E7)
+        for _ in range(120):
+            message = "".join(rng.choice(_PRINTABLE_SAFE) for _ in range(rng.randrange(0, 31)))
+            encoded = encode_message(message)
+            with self.subTest(message=message):
+                self.assertEqual(decode_report(encoded).truncated, over_budget(encoded))
+
+    def test_an_unflagged_decode_is_always_faithful(self):
+        """The whole guarantee: no warning means nothing was lost.
+
+        Over-budget decodes are allowed to lie; in-budget decodes are not, and
+        the flag must catch every case that does.
+        """
+        rng = random.Random(0x5EED)
+        checked = 0
+        for _ in range(300):
+            message = "".join(rng.choice(_PRINTABLE_SAFE) for _ in range(rng.randrange(0, 45)))
+            report = decode_report(encode_message(message))
+            if report.truncated:
+                continue
+            checked += 1
+            with self.subTest(message=message):
+                check_decoded_faithful(self, message, report.text)
+        self.assertGreaterEqual(checked, 100)
 
 
 class BranchBudgetLimitationTests(unittest.TestCase):
