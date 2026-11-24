@@ -224,6 +224,29 @@ class TestTokens(unittest.TestCase):
             with self.subTest(body=body):
                 self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
 
+    def test_char_token_beyond_c_int_range_returns_none(self):
+        """A digit string too big for ``chr`` must not escape as OverflowError.
+
+        ``chr`` raises ValueError past the scalar range but OverflowError past the
+        C int range, and catching only the first left the API answering 500 to a
+        token a client can type. The bound is what keeps the function total.
+        """
+        for body in ("999999999999999999999", "9" * 5000, "0" * 1 + "9" * 4301):
+            with self.subTest(length=len(body)):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+
+    def test_char_token_requires_plain_ascii_digits(self):
+        """The encoder writes ASCII digits, so nothing else is this token's language.
+
+        ``int`` would also accept a leading plus, surrounding whitespace, underscore
+        separators and non-ASCII digits, all of which decode to a character the
+        encoder never produced.
+        """
+        for body in ("+65", " 65", "65 ", "6_5", "\u0666\u0665", "0x41", "1e3"):
+            with self.subTest(body=body):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+        self.assertEqual(parse_char_token("[CHAR:65]"), "A")
+
     def test_literals_for_special_tokens(self):
         """Special tokens decode to their literal characters."""
         self.assertEqual(literal_for(NEWLINE_TOKEN), "\n")

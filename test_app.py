@@ -62,6 +62,16 @@ class NamesEndpointTests(unittest.TestCase):
         self.assertEqual(response.headers["access-control-allow-origin"], "*")
 
 
+class CharTokenTests(unittest.TestCase):
+    """A ``[CHAR:N]`` token can never crash the decoder, whatever N is."""
+
+    def test_oversized_code_point_decodes_to_the_invalid_marker(self) -> None:
+        """Past the C int range this raised OverflowError and answered 500."""
+        response = client.post("/api/decode", json={"text": "[CHAR:999999999999999999999]"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"result": "<?>"})
+
+
 class RequestValidationTests(unittest.TestCase):
     """Every rejection is a 400 or 413 carrying an ``error`` string."""
 
