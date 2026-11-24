@@ -354,7 +354,8 @@ class BranchBudgetReportTests(unittest.TestCase):
 
     def test_flag_matches_the_exact_overflow_condition(self):
         """The flag is set exactly when a step produced more than the budget."""
-        rng = random.Random(0xB0D9E7)
+        # A seeded generator, not a source of randomness: same corpus every run.
+        rng = random.Random(0xB0D9E7)  # nosec B311
         for _ in range(120):
             message = "".join(rng.choice(_PRINTABLE_SAFE) for _ in range(rng.randrange(0, 31)))
             encoded = encode_message(message)
@@ -367,7 +368,7 @@ class BranchBudgetReportTests(unittest.TestCase):
         Over-budget decodes are allowed to lie; in-budget decodes are not, and
         the flag must catch every case that does.
         """
-        rng = random.Random(0x5EED)
+        rng = random.Random(0x5EED)  # nosec B311
         checked = 0
         for _ in range(300):
             message = "".join(rng.choice(_PRINTABLE_SAFE) for _ in range(rng.randrange(0, 45)))
