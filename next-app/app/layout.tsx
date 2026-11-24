@@ -19,9 +19,25 @@ const fontTerminal = VT323({
 })
 
 export const metadata: Metadata = {
-  title: "PokeCipher",
+  // The product name carries the accent everywhere it is read: the tab, the
+  // search result, the share card. The wordmark already does.
+  title: "PokéCipher",
+  applicationName: "PokéCipher",
   description:
-    "Encrypt text into Pokemon names and decrypt them back again, using a stateful polyalphabetic cipher over three regional Pokedexes.",
+    "Encode text into Pokémon names and decode it back again, using a stateful polyalphabetic cipher over three regional Pokédexes.",
+  openGraph: {
+    title: "PokéCipher",
+    description:
+      "A retro terminal that turns text into Pokémon names, and back again. Decoding is deliberately ambiguous, and says so.",
+    siteName: "PokéCipher",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "PokéCipher",
+    description:
+      "A retro terminal that turns text into Pokémon names, and back again. Decoding is deliberately ambiguous, and says so.",
+  },
 }
 
 export default function RootLayout({

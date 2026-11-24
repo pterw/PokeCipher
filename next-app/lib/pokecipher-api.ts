@@ -80,7 +80,7 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<Payloa
 export async function fetchKnownNames(): Promise<Set<string>> {
   const response = await fetch(`${API_BASE}/api/names`)
   if (!response.ok) {
-    throw new PokeCipherError(`Could not load the Pokemon list (HTTP ${response.status}).`)
+    throw new PokeCipherError(`Could not load the Pokémon list (HTTP ${response.status}).`)
   }
   const payload = (await response.json()) as { names?: unknown }
   if (!Array.isArray(payload.names)) {

@@ -32,7 +32,7 @@ const MARKER_CLASS: Record<string, string> = {
 const MARKER_LEGEND: Record<string, string> = {
   ambiguous: "Amber marks genuine ambiguity: several characters are valid there.",
   mismatch: "Red marks a state mismatch: that token may not belong to this message.",
-  unknown: "Blue marks a name the Pokedex does not contain.",
+  unknown: "Blue marks a name the Pokédex does not contain.",
 }
 
 export default function Page() {
@@ -182,7 +182,7 @@ export default function Page() {
         <section className="flex flex-col gap-1.5">
           <BitTextarea
             id="input"
-            aria-label="Message to encode or Pokemon names to decode"
+            aria-label="Message to encode or Pokémon names to decode"
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -201,7 +201,7 @@ export default function Page() {
               }
             }}
             spellCheck={false}
-            placeholder="Type a message to encode, or paste Pokemon names to decode."
+            placeholder="Type a message to encode, or paste Pokémon names to decode."
           />
         </section>
 
@@ -280,10 +280,10 @@ export default function Page() {
         <div className="flex min-h-[3.25rem] flex-col justify-start gap-0.5 short:min-h-[3rem]">
           <p className="font-terminal text-lg text-foreground" aria-live="polite">
             {!hasInput
-              ? "Type text to encode, or paste Pokemon names to decode."
+              ? "Type text to encode, or paste Pokémon names to decode."
               : canDecode
-                ? `${recognised} Pokemon ${recognised === 1 ? "name" : "names"} recognised.`
-                : "Not Pokemon names, so decoding is off. Encode instead."}
+                ? `${recognised} Pokémon ${recognised === 1 ? "name" : "names"} recognised.`
+                : "Not Pokémon names, so decoding is off. Encode instead."}
           </p>
 
           {error ? (
