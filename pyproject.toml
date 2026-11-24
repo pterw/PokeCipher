@@ -69,6 +69,12 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+precision = 1
+# Measured 98.0% (branches included) when this gate was added, so 96 leaves room
+# for a genuine refactor to move lines around without a red build, while still
+# failing if a module loses its tests. CI is what enforces it: a plain
+# `python -m pytest` does not measure coverage at all.
+fail_under = 96
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",

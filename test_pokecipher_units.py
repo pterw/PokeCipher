@@ -30,7 +30,13 @@ from pokecipher import (
 from pokecipher.decoder import Branch, Mismatch, Slot, fork, literal_for, render, resolve
 from pokecipher.errors import PokedexError
 from pokecipher.markers import format_ambiguity, format_mismatch
-from pokecipher.pokedex import FOLDED_NAME_INDEX, build_name_index, lookup_name, validate_regions
+from pokecipher.pokedex import (
+    FOLDED_NAME_INDEX,
+    build_folded_index,
+    build_name_index,
+    lookup_name,
+    validate_regions,
+)
 from pokecipher.state import CharCounts
 from pokecipher.tokens import (
     CHAR_TOKEN_PREFIX,
@@ -126,6 +132,27 @@ class TestPokedexValidation(unittest.TestCase):
     def test_shipped_data_is_valid(self):
         """The Pokédex actually shipped by the package passes its own validation."""
         self.assertIsNone(validate_regions(REGIONS, REGION_NAMES))
+
+    def test_untrimmed_region_name_raises(self):
+        """A region name with surrounding space would silently miss its data."""
+        with self.assertRaises(PokedexError):
+            validate_regions(self._valid(), [" R"])
+
+    def test_folded_name_collision_raises(self):
+        """Two names that fold together with different mappings are a data bug.
+
+        The tolerant lookup keeps one key per folded spelling, so a collision
+        would make the decoder answer differently for the same token. Folding is
+        wider than case now, which is exactly why the guard is worth a test.
+        """
+        colliding = {"Abra": [("a", 0)], "ABRA": [("b", 1)]}
+        with self.assertRaises(PokedexError):
+            build_folded_index(colliding)
+
+    def test_folded_names_sharing_mappings_are_allowed(self):
+        """Folding onto an identical mapping list is harmless and merges."""
+        folded = build_folded_index({"Abra": [("a", 0)], "ABRA": [("a", 0)]})
+        self.assertEqual(folded, {"abra": [("a", 0)]})
 
 
 class TestCharCounts(unittest.TestCase):

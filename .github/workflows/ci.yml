@@ -35,6 +35,9 @@ jobs:
       - name: Ruff — format
         run: python -m ruff format --check --diff .
 
+      # fail_under lives in pyproject.toml's [tool.coverage.report], so the gate
+      # is the same whether CI runs it or a contributor does, and raising it is a
+      # one-line change in one place.
       - name: Pytest with coverage
         run: |
           python -m pytest \
