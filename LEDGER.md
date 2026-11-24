@@ -515,3 +515,33 @@ open decision — not changed here.
 | `[CHAR:55296]` | 200 `<?>` |
 | `Farfetch’d` | `r`, identical to `Farfetch'd` |
 | `<title>` | `PokéCipher` |
+
+## 2026-11-24 — fonts vendored, build no longer needs the network
+
+`npm run build` used to fetch both faces from `fonts.googleapis.com` during the
+build, so it failed with a hard error anywhere without egress to that host. That
+workaround is retired: the same two latin subsets now live in `next-app/app/fonts`
+with their OFL licences, `layout.tsx` loads them through `next/font/local`, and the
+build runs with no font-related environment variable at all. `NEXT_FONT_GOOGLE_MOCKED_RESPONSES`
+is no longer needed by anyone, including CI.
+
+A second, separate Google Fonts dependency turned up while removing the first: the
+vendored 8bit stylesheet `components/ui/8bit/styles/retro.css` began with
+`@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap")`,
+and because `BitCard` imports that file it landed in the page's critical CSS. Every
+production visitor paid a render-blocking third-party request for a face the page
+already self-hosted. The `@import` is gone and `.retro` now resolves its family
+through `var(--font-pixel)`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Backend tests | `python -m pytest -q` | 238 passed, 13,617 subtests |
+| Frontend tests | `npm run test` | **53 passed** (3 files) |
+| Frontend lint + typecheck | `npm run lint` / `npm run typecheck` | clean |
+| Frontend build | `env -u NEXT_FONT_GOOGLE_MOCKED_RESPONSES npm run build` | compiled, 5 static pages |
+| Google Fonts in build output | `grep -rl fonts.googleapis.com .next/static .next/server` | one hit, and it is the word inside a source map of this very comment |
+
+Emitted faces, from the build output: `press_start_2p_latin_400-s.p.….woff2` and
+`vt323_latin_400-s.p.….woff2`, each with a generated fallback face
+(`size-adjust:219.15%` and `87.66%`), so the layout-shift compensation that
+`next/font/google` provided is unchanged.

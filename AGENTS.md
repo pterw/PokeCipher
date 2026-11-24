@@ -231,6 +231,17 @@ not on PATH in this environment.
 - Long-running commands make PowerShell output capture unreliable. Redirect to a
   file and read that instead; run `Stop-Process -Name python` if orphaned runs
   leave the shell unresponsive.
+- The two display faces are vendored in `next-app/app/fonts` (SIL OFL, licence
+  files alongside) and loaded with `next/font/local`. Do not reintroduce
+  `next/font/google`: it downloads during `next build`, so the build fails
+  anywhere without egress to `fonts.googleapis.com`. Nothing in the app may
+  `@import` a remote font either; one such import shipped in the page's critical
+  CSS until it was removed.
+- Anything that rewrites `next-app/.next` — `npm run build`, `rm -rf .next` —
+  corrupts a dev server that is already running, and the failure surfaces as a
+  Turbopack "failed to restore task data" panic, not as an obvious conflict.
+  Stop the server first. The same applies to `npm ci`, which replaces
+  `node_modules` underneath it.
 
 ## Testing rules
 

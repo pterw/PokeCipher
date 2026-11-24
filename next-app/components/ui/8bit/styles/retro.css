@@ -1,7 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
-
+/* No remote @import here. This file is part of the page's critical CSS, so a
+   Google Fonts @import at the top of it was a render-blocking third-party
+   request on every visit, for a face the page already self-hosts. The variable
+   is the one layout.tsx sets from the vendored file in app/fonts. */
 .retro {
   font-family:
+    var(--font-pixel),
     "Press Start 2P",
     system-ui,
     -apple-system,

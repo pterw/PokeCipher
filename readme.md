@@ -106,7 +106,11 @@ npm run dev               # http://localhost:3000
 
 Run `npm ci` before starting the dev server, not while it is running: it replaces
 `node_modules`, and a dev server that loses it mid-flight dies with a confusing
-workspace-root error.
+workspace-root error. `npm run build` and `rm -rf .next` are the same hazard,
+because both rewrite the `.next` directory the dev server is using.
+
+The two display faces are vendored in `next-app/app/fonts`, so
+`npm run build` makes no network request and works offline.
 
 If you reach the dev server through a proxy or a hosted workspace rather than
 `localhost`, add that host to `allowedDevOrigins` in `next.config.ts`, or set

@@ -1,20 +1,30 @@
 import type { Metadata } from "next"
-import { Press_Start_2P, VT323 } from "next/font/google"
+import localFont from "next/font/local"
 
 import "./globals.css"
 
+// Both faces are vendored in ./fonts under the SIL Open Font License (the
+// licence files sit beside them) rather than loaded with next/font/google.
+// Google's loader downloads the files during `next build`, so the build itself
+// failed anywhere without egress to fonts.googleapis.com -- a hard error, not a
+// warning, and one that no amount of retrying fixes. These are the same latin
+// subsets that loader requested, so the rendered page is unchanged; the only
+// difference is that the bytes now come from the repository.
+//
 // Headings and the wordmark only: pixel type is unreadable in bulk.
-const fontPixel = Press_Start_2P({
-  subsets: ["latin"],
+const fontPixel = localFont({
+  src: "./fonts/press-start-2p-latin-400.woff2",
   weight: "400",
   variable: "--font-pixel",
+  display: "swap",
 })
 
 // The CLI terminal voice: a chunky monospace for the hero transcript.
-const fontTerminal = VT323({
-  subsets: ["latin"],
+const fontTerminal = localFont({
+  src: "./fonts/vt323-latin-400.woff2",
   weight: "400",
   variable: "--font-terminal",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
