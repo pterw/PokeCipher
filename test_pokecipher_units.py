@@ -518,6 +518,29 @@ class CaseInsensitiveLookupTests(unittest.TestCase):
         self.assertEqual(decode_message("farfetch'd"), decode_message("Farfetch'd"))
         self.assertEqual(decode_message("nidoran-f"), decode_message("Nidoran-F"))
 
+    def test_typographic_apostrophe_folds_onto_ascii(self) -> None:
+        """A smart-quoted name resolves like the canonical spelling.
+
+        Phone keyboards and chat clients rewrite ' as U+2019, and without the
+        fold the token becomes <?unknown: ...> for no reason the reader can see.
+        """
+        for spelling in (
+            "Farfetch\u2019d",
+            "farfetch\u2019d",
+            "FARFETCH\u2019D",
+            "Farfetch\u2018d",
+        ):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(decode_message(spelling), decode_message("Farfetch'd"))
+                self.assertEqual(lookup_name(spelling), lookup_name("Farfetch'd"))
+
+    def test_typographic_dash_folds_onto_ascii(self) -> None:
+        """The dash in Nidoran-F survives an en dash or an em dash substitution."""
+        canonical = decode_message("Nidoran-F")
+        for spelling in ("Nidoran\u2013F", "Nidoran\u2014F"):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(decode_message(spelling), canonical)
+
     def test_lookup_name_is_the_single_entry_point(self) -> None:
         """Both spellings resolve to the identical mapping list, not a copy."""
         self.assertEqual(lookup_name("zubat"), lookup_name("Zubat"))
