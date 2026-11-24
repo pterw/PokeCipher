@@ -46,12 +46,14 @@ from pokecipher import NAME_INDEX, decode_report, encode_message
 
 MAX_BODY_BYTES = 32 * 1024
 
-# The decoder emits positions as soon as they are final, so cost is close to
-# linear: ~1.2 s for 10,000 chars of prose on CPython 3.13. Text that sustains an
-# unresolved ambiguity throughout cannot collapse and stays quadratic (~3.3 s at
-# 4,100 chars, and ~13 s at 8,000). Capping here keeps the pathological case
-# inside the function's maxDuration instead of turning a huge paste into a
-# timeout.
+# Two costs matter. Decoding keeps every live hypothesis, which reaches ~5,200
+# for 500 chars of prose, so MAX_DECODE_BRANCHES bounds a step - that bound is
+# what makes the timing below linear, and it is also why a long decode can be
+# wrong (see decode_report). With the budget applied, ~1.2 s for 10,000 chars of
+# prose on CPython 3.13. Text that sustains an unresolved ambiguity throughout
+# cannot collapse and stays quadratic (~3.3 s at 4,100 chars, ~13 s at 8,000).
+# Capping here keeps the pathological case inside the function's maxDuration
+# instead of turning a huge paste into a timeout.
 MAX_TEXT_CHARS = 4_000
 
 # docs_url/redoc_url/openapi_url are off so the deployed surface stays exactly the

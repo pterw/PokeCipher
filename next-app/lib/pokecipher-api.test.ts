@@ -71,6 +71,24 @@ describe("decodeText", () => {
     expect(url).toBe("/api/decode")
     expect(JSON.parse(init.body)).toEqual({ text: "Zubat Weepinbell" })
   })
+
+  it("returns the text with truncated false when the flag is absent", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ result: "Hello W[n,o]rld!" }))
+    await expect(decodeText("Zubat")).resolves.toEqual({
+      text: "Hello W[n,o]rld!",
+      truncated: false,
+    })
+  })
+
+  it("forwards the server's truncated flag", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ result: "hello wnrld", truncated: true }))
+    await expect(decodeText("Zubat")).resolves.toEqual({ text: "hello wnrld", truncated: true })
+  })
+
+  it("treats a non-boolean truncated field as not truncated", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ result: "He", truncated: "yes" }))
+    await expect(decodeText("Zubat")).resolves.toEqual({ text: "He", truncated: false })
+  })
 })
 
 describe("error handling", () => {

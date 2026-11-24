@@ -45,6 +45,10 @@ export default function Page() {
   // job because it only records the last operation that finished.
   const [pending, setPending] = useState<Mode | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Set when the decoder exceeded its search budget. The decoded text looks
+  // exactly like an exact decode, so without this line a visitor is shown
+  // confident nonsense: see lib/pokecipher-api.ts.
+  const [truncated, setTruncated] = useState(false)
   const [copied, setCopied] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [knownNames, setKnownNames] = useState<Set<string>>(new Set())
@@ -95,10 +99,12 @@ export default function Page() {
       if (targetMode === "encode") {
         const text = await encodeText(input)
         setResult(text)
+        setTruncated(false)
         setMode("encode")
       } else {
-        const text = await decodeText(input)
-        setResult(text)
+        const decoded = await decodeText(input)
+        setResult(decoded.text)
+        setTruncated(decoded.truncated)
         setMode("decode")
       }
     } catch (err) {
@@ -116,6 +122,7 @@ export default function Page() {
     setInput("")
     setResult("")
     setError(null)
+    setTruncated(false)
     setClearing(true)
     setTimeout(() => setClearing(false), 200)
   }
@@ -126,6 +133,7 @@ export default function Page() {
     setResult("")
     setMode(mode === "encode" ? "decode" : "encode")
     setError(null)
+    setTruncated(false)
   }
 
   async function copy() {
@@ -327,6 +335,12 @@ export default function Page() {
               </p>
             )}
           </BitCard>
+          {result && mode === "decode" && truncated ? (
+            <p className="font-terminal text-base text-marker-ambiguous" role="status">
+              This message exceeded the decoder&apos;s search budget, so some characters may be
+              wrong. Decode a shorter message for an exact answer.
+            </p>
+          ) : null}
           {result &&
             mode === "decode" &&
             [...markerKinds]

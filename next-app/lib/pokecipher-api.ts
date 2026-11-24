@@ -16,7 +16,24 @@ export const MAX_TEXT_CHARS =
 
 export class PokeCipherError extends Error {}
 
-async function call(endpoint: "encode" | "decode", text: string): Promise<string> {
+/** A decode, plus the one thing the decoded string cannot say for itself. */
+export interface DecodeResult {
+  text: string
+  /**
+   * True when the decoder exceeded its branch budget and dropped hypotheses, so
+   * `text` is best-effort: a plain character in it may be wrong. Only ever set
+   * by the server; absent means the decode was exact (modulo `[x,y]` markers,
+   * which are the cipher working as designed).
+   */
+  truncated: boolean
+}
+
+interface Payload {
+  result: string
+  truncated: boolean
+}
+
+async function call(endpoint: "encode" | "decode", text: string): Promise<Payload> {
   const response = await fetch(`${API_BASE}/api/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,7 +61,10 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<string
   if (typeof result !== "string") {
     throw new PokeCipherError("The server returned a malformed response.")
   }
-  return result
+  // Absent is the normal case: the API only sends the flag when the budget was
+  // exceeded, which keeps every in-budget response byte-identical.
+  const truncated = (payload as { truncated?: unknown }).truncated === true
+  return { result, truncated }
 }
 
 /**
@@ -94,13 +114,15 @@ export function countKnownNames(text: string, known: Set<string>): number {
 }
 
 /** Encode plaintext into a space-separated sequence of Pokémon names. */
-export function encodeText(text: string): Promise<string> {
-  return call("encode", text)
+export async function encodeText(text: string): Promise<string> {
+  const { result } = await call("encode", text)
+  return result
 }
 
-/** Decode a Pokémon-name sequence back into plaintext. */
-export function decodeText(text: string): Promise<string> {
-  return call("decode", text)
+/** Decode a Pokémon-name sequence back to plaintext, and say if it was best-effort. */
+export async function decodeText(text: string): Promise<DecodeResult> {
+  const { result, truncated } = await call("decode", text)
+  return { text: result, truncated }
 }
 
 /** True when the text is within the API's input limit. */

@@ -141,18 +141,44 @@ curl -X POST https://poke-cipher-api.vercel.app/api/decode   -d '{"text":"zubat 
 # {"result":"Hello"}
 ```
 
+A decode that exceeded the decoder's search budget says so, rather than returning
+a best-effort string that looks exact:
+
+```bash
+curl -X POST https://poke-cipher-api.vercel.app/api/decode \
+  -d '{"text":"Tentacruel Weepinbell Ponyta ... Oddish"}'
+# {"result":"hello wnrld this ]s ...","truncated":true}
+```
+
+`truncated` is absent from every response that fits inside the budget, so the
+documented shape is unchanged for ordinary messages. The app shows it as a
+warning under the result.
+
 `GET /api/names` returns the 210 names the decoder accepts, sorted, cached for an
 hour. The frontend uses it to tell ciphertext from plaintext before offering to
 decode.
 
 ## Known limitations
 
+- **Long messages can decode to text the cipher could not have produced, and the
+  decoder says so.** Decoding keeps every hypothesis that is still consistent,
+  which for prose is exponential: 500 characters of ordinary English sustain
+  about 5,200 distinct hypotheses. `MAX_DECODE_BRANCHES` caps that at 32, and the
+  dropped branches can include the true reading, so a long decode can report a
+  character no valid reading supports. Measured: 75 of 300 random sentences do,
+  first at about 30 characters; `hello world this is a test of the cipher`
+  decodes to `hello wnrld this ]s ...`. Raising the cap does not fix it (prose
+  still lies at 1,024 branches, at 5 s per 1,000 characters), so the API reports
+  `truncated` instead of pretending, and the tests pin the guarantee that an
+  *unflagged* decode is always a faithful reading. The cap's numbers and the
+  reasoning behind them live in `test_cipher_invariants.py`.
 - **Decode time depends on how much ambiguity survives.** The decoder emits each
   position as soon as it is final, so ordinary text stays close to linear —
-  measured on CPython 3.13, ~1.2 s for 10,000 characters of prose. Text that
-  sustains an unresolved ambiguity throughout cannot collapse and degrades to
-  quadratic (~3.3 s at 4,100 characters). The API caps input at 4,000 characters
-  so even that worst case fits inside the function timeout.
+  measured on CPython 3.13, ~1.2 s for 10,000 characters of prose at the shipped
+  branch budget. Text that sustains an unresolved ambiguity throughout cannot
+  collapse and degrades to quadratic (~3.3 s at 4,100 characters). The API caps
+  input at 4,000 characters so even that worst case fits inside the function
+  timeout.
 - **The cipher is not cryptographically secure.** It is a puzzle and a teaching
   tool for substitution ciphers and state tracking, not a way to protect data.
 - Only the first 95 entries of each regional dex are used. Names containing
