@@ -448,3 +448,70 @@ state the fix and forbid `vercel alias set` re-pointing, which would recreate
 the pinned aliases. `DOD.md` and the ledger entries above keep their historical
 wording: they recorded what was true when they were written.
 
+
+## Correctness pass — truncation, surrogates, folding (2026-11-24)
+
+Branch `arena/b592a854-pokecipher`, nine commits, all local evidence gathered in
+one session against a running app (`uvicorn app:app --port 8000` plus
+`next dev`, and a jsdom render of the real page driving Encode → Swap → Decode
+through the live API). No production deployment was triggered.
+
+### What was measured first
+
+| Probe | Result |
+|---|---|
+| `decode(encode("hello world this is a test of the cipher"))` | `hello wnrld this ]s [a,h] test {o}[a,f] t[a,h]e cbphe[J,r]` — 3 lost characters, no marker |
+| Realistic short messages that decode incorrectly | **2 of 15**, first at 32 characters |
+| Random sentences (3–14 words) that decode incorrectly | **75 of 300** |
+| Uncapped hypotheses, 500 chars of prose | **5,184**, 4.2 s — the budget is what makes decoding linear |
+| Raise the cap to 128 / 512 / 1024 and re-test prose | still wrong (0.46 s / 2.5 s / 5.3 s) — tuning cannot fix it |
+| `POST /api/decode {"text":"[CHAR:55296]"}` | **500**, `UnicodeEncodeError` during response serialisation |
+| `POST /api/encode {"text":"\ud800"}` | **200**, `[CHAR:55296]` — the API could emit ciphertext it could not read |
+| `decode_message("Farfetch’d")` | `<?unknown: Farfetch’d>`; the ASCII spelling worked |
+| Truncation flag prototype, 300 sentences | **0 false negatives**, 26 false positives |
+
+### Decisions and non-decisions
+
+- **The budget stays at 32.** Raising it buys short sentences at 5× the 4,000-character
+  cost and still returns wrong text on long ones. The defect was silence, not the
+  number, so `decode_report` reports the overflow and `decode_message` is unchanged.
+- **No marker inside the decoded text.** Tested and rejected earlier in
+  `test_cipher_invariants.py`; re-confirmed by reading the reason (count
+  desynchronisation) before choosing an out-of-band flag.
+- **No change to `test_cipher.py` or `test_cipher_pyramidal.py` expectations.** Two
+  assertions in the pyramidal suite were deleted only because the following line
+  subsumes them.
+- **`next-themes` removed** rather than a dark palette built; the app has one palette
+  by design and the hotkey toggled a class with no styles.
+- **Phase 2 (visual work) not started**, per the owner: yellow terminal border,
+  terminal size, hero spacing, pistachio `#d7f5c4` replacement. Recording that these
+  remain open so the next pass does not re-discover them.
+
+### Gates
+
+| Gate | Command | Result |
+|---|---|---|
+| Backend tests | `python -m pytest -q` | **238 passed**, 13,617 subtests, 7.9 s |
+| Backend coverage | `python -m pytest --cov --cov-report=term` | **98.6%**, gate 96% reached |
+| Backend lint | `python -m ruff check .` | clean |
+| Backend format | `python -m ruff format --check .` | 29 files already formatted |
+| Frontend tests | `npm run test` | **49 passed** (2 files) |
+| Frontend lint | `npm run lint` | clean |
+| Frontend typecheck | `npm run typecheck` | clean |
+| Frontend build | `NEXT_FONT_GOOGLE_MOCKED_RESPONSES=… npm run build` | compiled, 5 static pages |
+
+`npm run build` needs `fonts.googleapis.com`; the sandbox blocks it, so the build was
+verified with Next's documented mocked-responses hook. That is a network dependency
+worth removing by self-hosting the two faces, which PRODUCT.md already lists as an
+open decision — not changed here.
+
+### Observed after the change, through the running app
+
+| Probe | Result |
+|---|---|
+| `decode` of the 40-character sentence | `{"result":"hello wnrld …","truncated":true}` |
+| Same message driven through the page in jsdom | warning line shown, `role="status"`, amber |
+| `See you at the Pokemon Center.` | exact decode, no warning |
+| `[CHAR:55296]` | 200 `<?>` |
+| `Farfetch’d` | `r`, identical to `Farfetch'd` |
+| `<title>` | `PokéCipher` |
