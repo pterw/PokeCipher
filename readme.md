@@ -221,10 +221,11 @@ run these scripts.
   discards more than half the art in each axis — the eyes and the nose go first.
   Each output pixel is averaged over the whole footprint it covers instead.
 
-In neither format does the app's own theme toggle recolour the tab icon: a
-favicon is drawn in browser chrome, outside the document, so it cannot see the
-toggle. The SVG at least gets `prefers-color-scheme`; the ICO gets nothing at all,
-which is why it carries a fixed dark field and a light ring. The art is the
+Neither format follows the page's colour scheme: a favicon is drawn in browser
+chrome, outside the document, so it cannot see the app's palette at all. The SVG
+at least gets `prefers-color-scheme`; the ICO gets nothing, which is why it
+carries a fixed dark field and a light ring. The app itself has one palette and
+no theme switch, by design — the greens are the identity, not a mode. The art is the
 Generation 1 Pikachu sprite from Pokémon Yellow, the era the Game Boy palette
 comes from. Sprite art is the property of Nintendo / Game Freak / Creatures Inc.,
 and the source sprite is deliberately not committed: `favicon.ico` is rebuilt from

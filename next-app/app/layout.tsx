@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { Press_Start_2P, VT323 } from "next/font/google"
 
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 
 // Headings and the wordmark only: pixel type is unreadable in bulk.
 const fontPixel = Press_Start_2P({
@@ -48,12 +47,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      suppressHydrationWarning
       className={`${fontPixel.variable} ${fontTerminal.variable} font-sans antialiased`}
     >
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
