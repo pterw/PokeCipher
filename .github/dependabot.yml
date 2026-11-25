@@ -10,6 +10,10 @@ updates:
     schedule:
       interval: monthly
     groups:
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
       npm-patch-minor:
         update-types: [patch, minor]
 
