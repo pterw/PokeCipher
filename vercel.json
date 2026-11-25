@@ -4,7 +4,7 @@
   "functions": {
     "app.py": {
       "maxDuration": 10,
-      "excludeFiles": "{next-app/**,coverage/**,.github/**,**/test_*.py,*.md,*.png,*.txt}"
+      "excludeFiles": "{next-app/**,docs/**,tests/**,coverage/**,.github/**,*.md,*.txt}"
     }
   }
 }

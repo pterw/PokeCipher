@@ -19,7 +19,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "docs" / "make_favicon.py"
 ICON = ROOT / "next-app" / "app" / "icon.svg"
 ICO = ROOT / "next-app" / "app" / "favicon.ico"

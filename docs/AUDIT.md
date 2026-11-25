@@ -1,4 +1,4 @@
-> **Superseded — read `LEDGER.md` and `AGENTS.md` instead.**
+> **Superseded. See the [ledger](LEDGER.md) and [agent guide](../AGENTS.md).**
 >
 > This document audits the pre-rewrite tkinter application. The decoder defect it
 > calls critical in §2.1 ("state is abandoned after ambiguity") was fixed by the

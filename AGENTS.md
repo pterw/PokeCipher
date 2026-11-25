@@ -65,7 +65,8 @@ next-app/        Next.js 16 + React 19 + Tailwind v4 + shadcn/ui frontend.
   lib/utils.ts           cn() class-name helper (shadcn convention).
   components/ui/         shadcn primitives.
   components.json        shadcn config; `npx shadcn add <name>` adds primitives.
-tests            Live at the repository root as test_*.py files.
+tests/           Python unit, API, and asset tests.
+docs/            Project notes, design references, asset generators, and images.
 ```
 
 ## Branch and workflow
@@ -145,7 +146,7 @@ Run from the repository root unless noted.
 
 ```bash
 python -m pytest                      # full suite
-python -m pytest -q path/to/test.py   # a single test file
+python -m pytest -q tests/test_app.py  # a single test file
 python -m ruff check .                # lint
 python -m ruff format .               # format
 python -m ruff format --check .       # format check only
@@ -247,7 +248,7 @@ not on PATH in this environment.
 
 ## Testing rules
 
-- Tests are `unittest`-style classes at the repository root, named `test_*.py`,
+- Tests are `unittest`-style classes in `tests/`, named `test_*.py`,
   and are collected by pytest.
 - Write docstrings as declarative sentences: "Encoding an empty string returns an
   empty string." — not "for testing…".

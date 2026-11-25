@@ -222,8 +222,8 @@ Real, verified, and safe to use:
   point. `Shroomish` is only `A`, in Hoenn, so it kills the `i` branch. Note
   `Geodude` by itself decodes to `i`, not to a marker — the ambiguity is
   positional, not intrinsic to the name.
-- `Screenshot.png` (laptop, 1440x900) and `Screenshot-mobile.png` (phone,
-  390x844) at the repository root.
+- [Laptop screenshot](assets/Screenshot.png) (1440x900) and
+  [phone screenshot](assets/Screenshot-mobile.png) (390x844).
 - Test suite: 235 Python tests (13,617 subtests); 49 frontend tests. Measured
   2026-11-24 with `python -m pytest -q` and `npm run test`. These counts drift,
   since nothing verifies them against the suite; re-measure rather than trusting
