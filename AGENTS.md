@@ -70,9 +70,11 @@ tests            Live at the repository root as test_*.py files.
 
 ## Branch and workflow
 
-- Default and protected branch: `main`.
+- Default branch: `main`.
 - Branch from `main` using `<type>/<short-slug>` (for example `fix/decoder-merge`).
 - Open a pull request into `main`; CI must be green before merge.
+- Use the `Quality Gate` check for the `main` ruleset. It verifies static
+  checks, Python and web tests, and the production-build HTTP smoke test.
 - Fill in the pull request template, including the cipher-behaviour checklist.
 
 ## Deployment
@@ -259,8 +261,9 @@ not on PATH in this environment.
   (`lib/markers.test.ts`). They run in the default `node` environment because the
   code under test is pure. A component test opts itself into jsdom with a
   `// @vitest-environment jsdom` docblock (`components/page.test.tsx`) and stubs
-  `fetch`, so the suite never needs a running API. CI runs `npm run test` before
-  lint, typecheck and build.
+  `fetch`, so the suite never needs a running API. CI runs lint and typecheck
+  before the test suites. Once both suites pass, it builds Next.js and runs
+  `scripts/smoke_http.py` against Next.js and Uvicorn together.
 
 ## Style rules
 

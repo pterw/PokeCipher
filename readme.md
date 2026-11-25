@@ -129,6 +129,23 @@ Next serves the HTML with 200 and then refuses every `/_next/static/*` request
 with 403, so the page loads unstyled and inert, which looks like a broken build
 rather than a rejected origin.
 
+## Continuous integration
+
+The [CI workflow](.github/workflows/ci.yml) runs lint and type checks first,
+then Pytest on Python 3.10 and 3.12 and Vitest on Node 24. The Python 3.12
+job enforces the coverage floor. Once those checks pass,
+it builds Next.js and checks smart punctuation and branch-budget reporting
+through the running web server and FastAPI. With both local servers running,
+run the same smoke test from the repository root.
+
+```bash
+python scripts/smoke_http.py http://localhost:3000
+```
+
+`Quality Gate` is the single check to require for merges into `main`. It
+fails if a prerequisite fails, is cancelled, or is skipped. [Dependabot](.github/dependabot.yml)
+opens monthly update PRs for Python, npm, and GitHub Actions.
+
 ## Deployment
 
 The repository deploys as two Vercel projects, each with its own framework preset.

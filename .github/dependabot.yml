@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm
+    directory: /next-app
+    schedule:
+      interval: monthly
+    groups:
+      npm-patch-minor:
+        update-types: [patch, minor]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      python-patch-minor:
+        update-types: [patch, minor]

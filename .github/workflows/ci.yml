@@ -6,83 +6,170 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  python:
-    name: Python — lint & test
+  python-checks:
+    name: Python static checks
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version-file: .python-version
           cache: pip
           cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check --output-format=github .
+      - run: python -m ruff format --check --diff .
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+  web-checks:
+    name: Web static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: next-app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: next-app/package.json
+          cache: npm
+          cache-dependency-path: next-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
 
-      - name: Ruff — lint
-        run: python -m ruff check --output-format=github .
-
-      - name: Ruff — format
-        run: python -m ruff format --check --diff .
-
-      # fail_under lives in pyproject.toml's [tool.coverage.report], so the gate
-      # is the same whether CI runs it or a contributor does, and raising it is a
-      # one-line change in one place.
+  python-tests:
+    name: Python tests (${{ matrix.python-version }})
+    needs: [python-checks, web-checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        # Package compatibility floor and the deployed interpreter.
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - name: Pytest compatibility suite
+        if: matrix.python-version != '3.12'
+        run: python -m pytest
       - name: Pytest with coverage
+        # Coverage changes the cost of the suite's wall-clock performance tests.
+        if: matrix.python-version == '3.12'
         run: |
-          python -m pytest \
-            --cov \
-            --cov-report=term-missing \
-            --cov-report=html:coverage/ \
-            --cov-report=xml:coverage/coverage.xml
-
+          python -m pytest --cov --cov-report=term-missing \
+            --cov-report=html:coverage/ --cov-report=xml:coverage/coverage.xml
       - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: ${{ always() && matrix.python-version == '3.12' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage
           path: coverage/
           if-no-files-found: warn
 
-  web:
-    name: Web — test, lint, typecheck & build
+  web-tests:
+    name: Web tests
+    needs: [python-checks, web-checks]
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: next-app
-
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          node-version: "24"
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: next-app/package.json
           cache: npm
           cache-dependency-path: next-app/package-lock.json
+      - run: npm ci
+      - run: npm run test
 
-      - name: Install dependencies
-        run: npm ci
+  integration:
+    name: Build and HTTP smoke test
+    needs: [python-tests, web-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_PUBLIC_API_URL: ""
+      VERCEL: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: next-app/package.json
+          cache: npm
+          cache-dependency-path: next-app/package-lock.json
+      - run: python -m pip install -e ".[dev]"
+      - run: npm ci
+        working-directory: next-app
+      - run: npm run build
+        working-directory: next-app
+      - name: Smoke-test Next routing to Uvicorn
+        run: |
+          logs="$(mktemp -d)"
+          python -m uvicorn app:app --host 127.0.0.1 --port 8000 >"$logs/api.log" 2>&1 &
+          api_pid=$!
+          node next-app/node_modules/next/dist/bin/next start next-app \
+            --hostname 127.0.0.1 --port 3000 >"$logs/web.log" 2>&1 &
+          web_pid=$!
+          cleanup() {
+            status=$?
+            kill "$web_pid" "$api_pid" 2>/dev/null || true
+            wait "$web_pid" "$api_pid" 2>/dev/null || true
+            if (( status != 0 )); then
+              tail -n 60 "$logs/api.log" "$logs/web.log"
+            fi
+            rm -r "$logs"
+          }
+          trap cleanup EXIT
 
-      # Fastest feedback first: unit tests before the slower type and build steps.
-      - name: Vitest
-        run: npm run test
+          web_url=http://127.0.0.1:3000
+          curl --silent --show-error --fail --retry 12 --retry-all-errors \
+            --retry-delay 1 --max-time 2 --output /dev/null "$web_url/api/names"
+          python scripts/smoke_http.py "$web_url"
 
-      - name: ESLint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
+  quality-gate:
+    name: Quality Gate
+    needs: [python-checks, web-checks, python-tests, web-tests, integration]
+    # Always report the gate, including when a failed prerequisite skipped a job.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Verify every required job passed
+        env:
+          JOBS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$JOBS"
+          jq -e 'all(.[]; .result == "success")' <<<"$JOBS"
