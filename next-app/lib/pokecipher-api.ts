@@ -16,7 +16,27 @@ export const MAX_TEXT_CHARS =
 
 export class PokeCipherError extends Error {}
 
-async function call(endpoint: "encode" | "decode", text: string): Promise<string> {
+/** A decode, plus the one thing the decoded string cannot say for itself. */
+export interface DecodeResult {
+  text: string
+  /**
+   * True when the decoder exceeded its branch budget and dropped hypotheses, so
+   * `text` is best-effort: a plain character in it may be wrong. Only ever set
+   * by the server. If absent, no hypotheses were dropped to meet the budget.
+   * Ambiguity and mismatch markers can still appear in the result.
+   */
+  truncated: boolean
+}
+
+interface Payload {
+  result: string
+  truncated: boolean
+}
+
+async function call(
+  endpoint: "encode" | "decode",
+  text: string
+): Promise<Payload> {
   const response = await fetch(`${API_BASE}/api/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,7 +48,7 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<string
     payload = await response.json()
   } catch {
     throw new PokeCipherError(
-      `Could not reach the cipher service (HTTP ${response.status}). Is the API running?`,
+      `Could not reach the cipher service (HTTP ${response.status}). Is the API running?`
     )
   }
 
@@ -44,11 +64,48 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<string
   if (typeof result !== "string") {
     throw new PokeCipherError("The server returned a malformed response.")
   }
-  return result
+  // Absent is the normal case: the API only sends the flag when the budget was
+  // exceeded, which keeps every in-budget response byte-identical.
+  const truncated = (payload as { truncated?: unknown }).truncated === true
+  return { result, truncated }
 }
 
 /**
- * Fetch every Pokémon name the decoder accepts, case-folded for lookup.
+ * The decoder's vocabulary: every name it accepts, plus the punctuation it folds
+ * before matching.
+ *
+ * Both halves come from `/api/names` in one response so the gate and decoder
+ * share the same punctuation substitutions. A fold table restated in
+ * TypeScript would drift from the server's the first time either side changed,
+ * and the symptom would be silent: a paste the API would have decoded, refused by
+ * the page before it could ask.
+ */
+export interface Vocabulary {
+  names: Set<string>
+  folds: Record<string, string>
+}
+
+/** The vocabulary before the list has loaded: the gate stays shut on it. */
+export const EMPTY_VOCABULARY: Vocabulary = { names: new Set(), folds: {} }
+
+/**
+ * Lowercase a token and apply the server's punctuation substitutions.
+ *
+ * Case first, then the served punctuation table, so `Farfetch’d` reaches
+ * `Farfetch'd` exactly as `pokedex.fold_name` does.
+ */
+export function foldToken(
+  token: string,
+  folds: Record<string, string>
+): string {
+  const lowered = token.toLowerCase()
+  let folded = ""
+  for (const character of lowered) folded += folds[character] ?? character
+  return folded
+}
+
+/**
+ * Fetch every Pokémon name the decoder accepts, and the folds it applies first.
  *
  * The decode control is gated on whether the input actually looks like
  * ciphertext, which cannot be judged without this set. It is fetched rather than
@@ -57,16 +114,32 @@ async function call(endpoint: "encode" | "decode", text: string): Promise<string
  *
  * Roughly 2 KB, served with a one-hour Cache-Control, fetched once per mount.
  */
-export async function fetchKnownNames(): Promise<Set<string>> {
+export async function fetchKnownNames(): Promise<Vocabulary> {
   const response = await fetch(`${API_BASE}/api/names`)
   if (!response.ok) {
-    throw new PokeCipherError(`Could not load the Pokemon list (HTTP ${response.status}).`)
+    throw new PokeCipherError(
+      `Could not load the Pokémon list (HTTP ${response.status}).`
+    )
   }
-  const payload = (await response.json()) as { names?: unknown }
+  const payload = (await response.json()) as {
+    names?: unknown
+    folds?: unknown
+  }
   if (!Array.isArray(payload.names)) {
     throw new PokeCipherError("The server returned a malformed name list.")
   }
-  return new Set(payload.names.map((name) => String(name).toLowerCase()))
+  const folds: Record<string, string> = {}
+  if (payload.folds && typeof payload.folds === "object") {
+    for (const [from, to] of Object.entries(
+      payload.folds as Record<string, unknown>
+    )) {
+      if (typeof to === "string") folds[from] = to
+    }
+  }
+  return {
+    names: new Set(payload.names.map((name) => String(name).toLowerCase())),
+    folds,
+  }
 }
 
 /**
@@ -78,29 +151,41 @@ export async function fetchKnownNames(): Promise<Set<string>> {
  * required, because a lone name is legitimate ciphertext — `Zubat` decodes to
  * `H` — and demanding two or three would lock out every short message.
  *
- * Returns false while `known` is empty, i.e. before the list has loaded, so the
- * control stays shut rather than briefly permitting a call that would fail.
+ * Returns false while the vocabulary is empty, i.e. before the list has loaded, so
+ * the control stays shut rather than briefly permitting a call that would fail.
  */
-export function looksLikeCiphertext(text: string, known: Set<string>): boolean {
-  if (known.size === 0) return false
+export function looksLikeCiphertext(
+  text: string,
+  vocabulary: Vocabulary
+): boolean {
+  if (vocabulary.names.size === 0) return false
   const [first] = text.trim().split(/\s+/, 1)
-  return Boolean(first) && known.has(first.toLowerCase())
+  return (
+    Boolean(first) && vocabulary.names.has(foldToken(first, vocabulary.folds))
+  )
 }
 
 /** How many whitespace-separated tokens in `text` are known Pokémon names. */
-export function countKnownNames(text: string, known: Set<string>): number {
-  if (known.size === 0) return 0
-  return text.split(/\s+/).filter((token) => token && known.has(token.toLowerCase())).length
+export function countKnownNames(text: string, vocabulary: Vocabulary): number {
+  if (vocabulary.names.size === 0) return 0
+  return text
+    .split(/\s+/)
+    .filter(
+      (token) =>
+        token && vocabulary.names.has(foldToken(token, vocabulary.folds))
+    ).length
 }
 
 /** Encode plaintext into a space-separated sequence of Pokémon names. */
-export function encodeText(text: string): Promise<string> {
-  return call("encode", text)
+export async function encodeText(text: string): Promise<string> {
+  const { result } = await call("encode", text)
+  return result
 }
 
-/** Decode a Pokémon-name sequence back into plaintext. */
-export function decodeText(text: string): Promise<string> {
-  return call("decode", text)
+/** Decode a Pokémon-name sequence back to plaintext, and say if it was best-effort. */
+export async function decodeText(text: string): Promise<DecodeResult> {
+  const { result, truncated } = await call("decode", text)
+  return { text: result, truncated }
 }
 
 /** True when the text is within the API's input limit. */

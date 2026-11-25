@@ -93,6 +93,20 @@ class Mismatch:
 Segment = Literal | Slot | Mismatch
 
 
+@dataclass(frozen=True)
+class DecodeReport:
+    """A decoded message plus the one fact the text cannot carry.
+
+    ``truncated`` says the branch budget was exceeded at least once, so the
+    decode is best-effort from that point on: a plain character in ``text`` may
+    still be wrong. It is False for every message that fits inside the budget,
+    which is every message this project's own examples and docs use.
+    """
+
+    text: str
+    truncated: bool
+
+
 def literal_for(token: str) -> str | None:
     """Return the literal text a special token stands for, or ``None`` if it is not one."""
     if token == NEWLINE_TOKEN:
@@ -107,8 +121,15 @@ def literal_for(token: str) -> str | None:
     return None
 
 
-def fork(branches: list[Branch], mappings: tuple[Mapping, ...]) -> list[Branch]:
-    """Advance every branch across every valid candidate, merging equivalent results."""
+def merge(
+    branches: list[Branch], mappings: tuple[Mapping, ...]
+) -> dict[frozenset[tuple[str, int]], Branch]:
+    """Advance every branch across every valid candidate, merging equivalent results.
+
+    Split out from :func:`fork` so the decoder can see how many hypotheses a step
+    produced *before* the budget is applied: over-budget is the only evidence
+    that a decode may have discarded the true reading.
+    """
     merged: dict[frozenset[tuple[str, int]], Branch] = {}
 
     for branch in branches:
@@ -120,7 +141,12 @@ def fork(branches: list[Branch], mappings: tuple[Mapping, ...]) -> list[Branch]:
             else:
                 merged[key] = advanced
 
-    return list(merged.values())[:MAX_DECODE_BRANCHES]
+    return merged
+
+
+def fork(branches: list[Branch], mappings: tuple[Mapping, ...]) -> list[Branch]:
+    """Advance every branch across every valid candidate, within the branch budget."""
+    return list(merge(branches, mappings).values())[:MAX_DECODE_BRANCHES]
 
 
 def resolve(position: int, branches: list[Branch]) -> str:
@@ -153,6 +179,11 @@ def render(segments: list[Segment], branches: list[Branch]) -> str:
 def decode_message(encoded_pokemon_string: str) -> str:
     """Decode a Pokémon-name sequence back to plaintext.
 
+    The decoded text alone; :func:`decode_report` returns the same string with
+    the branch-budget flag beside it. Callers that present the result to a person
+    should prefer the report, because a decode that overran the budget can drop
+    the true reading and still look exact.
+
     Decoding is *fork-based*: whenever a token is ambiguous the decoder spawns
     one branch per candidate character and advances each independently. Branches
     that reach identical counts are merged, and branches that become impossible
@@ -175,9 +206,28 @@ def decode_message(encoded_pokemon_string: str) -> str:
     Positions are emitted as soon as they are final, which keeps retained history
     short and decoding close to linear on unambiguous input.
     """
+    return decode_report(encoded_pokemon_string).text
+
+
+def decode_report(encoded_pokemon_string: str) -> DecodeReport:
+    """Decode a Pokémon-name sequence, reporting whether the budget was exceeded.
+
+    ``truncated`` is True when at least one step produced more live hypotheses
+    than ``MAX_DECODE_BRANCHES``. The surplus is dropped, and the dropped
+    branches can include the true reading, so an over-budget decode may report a
+    character that no valid reading supports — silently, because the surviving
+    branches still render as plain text. The flag is the only way a caller can
+    tell that apart from a decode that is merely ambiguous.
+
+    This is why the flag exists instead of a marker in the text: marking the
+    overflow in-band desynchronises the occurrence counts and was measured to
+    lose *more* positions (see ``test_cipher_invariants.py``). The flag changes
+    no output whatsoever.
+    """
     branches = [Branch.start()]
     emitted: list[str] = []
     pending: list[Segment] = []
+    truncated = False
 
     for token in encoded_pokemon_string.split():
         literal = literal_for(token)
@@ -190,7 +240,9 @@ def decode_message(encoded_pokemon_string: str) -> str:
             pending.append(Literal(format_unknown(token)))
             continue
 
-        next_branches = fork(branches, tuple(mappings))
+        merged = merge(branches, tuple(mappings))
+        next_branches = list(merged.values())[:MAX_DECODE_BRANCHES]
+        truncated = truncated or len(merged) > MAX_DECODE_BRANCHES
         if next_branches:
             branches = next_branches
             pending.append(Slot(len(branches[0].choices) - 1))
@@ -208,4 +260,4 @@ def decode_message(encoded_pokemon_string: str) -> str:
             branches = [Branch(branches[0].state)]
 
     emitted.append(render(pending, branches))
-    return "".join(emitted)
+    return DecodeReport(text="".join(emitted), truncated=truncated)

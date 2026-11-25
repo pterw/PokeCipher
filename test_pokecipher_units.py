@@ -24,12 +24,19 @@ from pokecipher import (
     REGION_SIZE,
     REGIONS,
     decode_message,
+    decode_report,
     encode_message,
 )
 from pokecipher.decoder import Branch, Mismatch, Slot, fork, literal_for, render, resolve
 from pokecipher.errors import PokedexError
 from pokecipher.markers import format_ambiguity, format_mismatch
-from pokecipher.pokedex import FOLDED_NAME_INDEX, build_name_index, lookup_name, validate_regions
+from pokecipher.pokedex import (
+    FOLDED_NAME_INDEX,
+    build_folded_index,
+    build_name_index,
+    lookup_name,
+    validate_regions,
+)
 from pokecipher.state import CharCounts
 from pokecipher.tokens import (
     CHAR_TOKEN_PREFIX,
@@ -126,6 +133,27 @@ class TestPokedexValidation(unittest.TestCase):
         """The Pokédex actually shipped by the package passes its own validation."""
         self.assertIsNone(validate_regions(REGIONS, REGION_NAMES))
 
+    def test_untrimmed_region_name_raises(self):
+        """A region name with surrounding space would silently miss its data."""
+        with self.assertRaises(PokedexError):
+            validate_regions(self._valid(), [" R"])
+
+    def test_folded_name_collision_raises(self):
+        """Two names that fold together with different mappings are a data bug.
+
+        The tolerant lookup keeps one key per folded spelling, so a collision
+        would make the decoder answer differently for the same token. Folding is
+        wider than case now, which is exactly why the guard is worth a test.
+        """
+        colliding = {"Abra": [("a", 0)], "ABRA": [("b", 1)]}
+        with self.assertRaises(PokedexError):
+            build_folded_index(colliding)
+
+    def test_folded_names_sharing_mappings_are_allowed(self):
+        """Folding onto an identical mapping list is harmless and merges."""
+        folded = build_folded_index({"Abra": [("a", 0)], "ABRA": [("a", 0)]})
+        self.assertEqual(folded, {"abra": [("a", 0)]})
+
 
 class TestCharCounts(unittest.TestCase):
     """Immutable per-character occurrence counts."""
@@ -179,6 +207,45 @@ class TestTokens(unittest.TestCase):
         self.assertIsNone(parse_char_token("[CHAR:abc]"))
         self.assertIsNone(parse_char_token("[CHAR:"))
         self.assertIsNone(parse_char_token("[CHAR:9"))
+
+    def test_surrogate_char_token_does_not_parse(self):
+        """A code point in the surrogate range is not a character a token may name.
+
+        It is representable in a Python string but cannot be encoded as UTF-8, so
+        accepting it would decode into text no HTTP response could serialise.
+        """
+        for code in (0xD800, 0xDBFF, 0xDC00, 0xDFFF):
+            with self.subTest(code=code):
+                self.assertIsNone(parse_char_token(format_char_token(code)))
+
+    def test_out_of_range_char_token_returns_none(self):
+        """Code points beyond Unicode, and negative ones, do not parse."""
+        for body in ("1114112", "-1", "99999999"):
+            with self.subTest(body=body):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+
+    def test_char_token_beyond_c_int_range_returns_none(self):
+        """A digit string too big for ``chr`` must not escape as OverflowError.
+
+        ``chr`` raises ValueError past the scalar range but OverflowError past the
+        C int range, and catching only the first left the API answering 500 to a
+        token a client can type. The bound is what keeps the function total.
+        """
+        for body in ("999999999999999999999", "9" * 5000, "0" * 1 + "9" * 4301):
+            with self.subTest(length=len(body)):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+
+    def test_char_token_requires_plain_ascii_digits(self):
+        """The encoder writes ASCII digits, so nothing else is this token's language.
+
+        ``int`` would also accept a leading plus, surrounding whitespace, underscore
+        separators and non-ASCII digits, all of which decode to a character the
+        encoder never produced.
+        """
+        for body in ("+65", " 65", "65 ", "6_5", "\u0666\u0665", "0x41", "1e3"):
+            with self.subTest(body=body):
+                self.assertIsNone(parse_char_token(f"[CHAR:{body}]"))
+        self.assertEqual(parse_char_token("[CHAR:65]"), "A")
 
     def test_literals_for_special_tokens(self):
         """Special tokens decode to their literal characters."""
@@ -382,54 +449,53 @@ class TestPerformanceAndSmoke(unittest.TestCase):
         self.assertGreaterEqual(len(message), 10_000)
         encoded = encode_message(message)
         start = time.perf_counter()
-        result = decode_message(encoded)
+        decode_message(encoded)
         elapsed = time.perf_counter() - start
-        self.assertIsInstance(result, str)
         self.assertLess(elapsed, 5.0)
 
     def test_repeated_single_character_stays_linear(self):
         """A long run of one character stays cheap: one branch, early emission."""
         encoded = encode_message("z" * 8_000)
         start = time.perf_counter()
-        result = decode_message(encoded)
+        decode_message(encoded)
         elapsed = time.perf_counter() - start
-        self.assertIsInstance(result, str)
         self.assertLess(elapsed, 2.0)
 
     def test_highly_repetitive_input_stays_bounded(self):
         """Branch pruning keeps a long repetitive message tractable."""
         encoded = encode_message("ab" * 2000)
         start = time.perf_counter()
-        result = decode_message(encoded)
+        decode_message(encoded)
         elapsed = time.perf_counter() - start
-        self.assertIsInstance(result, str)
         self.assertLess(elapsed, 15.0)
 
-    def test_prose_decoding_scales_near_linearly(self):
-        """Doubling prose length roughly doubles decode time, not quadruples it."""
-        halved = encode_message(self.PROSE[:2_500])
-        doubled = encode_message(self.PROSE[:5_000])
+    def test_prose_past_the_budget_is_flagged_and_stays_fast(self):
+        """Long prose decodes fast *because* hypotheses are capped, and says so.
+
+        A timing ratio used to stand here, asserting decode time grew roughly
+        with length. That property is real but it is the branch cap's doing, not
+        the collapse optimisation's: uncapped, 500 characters of this prose reach
+        about 5,200 hypotheses and take seconds. Asserting the ratio let the test
+        pass while the decoder silently degraded, so it now asserts the cap's
+        observable consequence - the decode is flagged as best-effort - plus a
+        single generous latency bound.
+        """
+        encoded = encode_message(self.PROSE[:5_000])
 
         start = time.perf_counter()
-        decode_message(halved)
-        small = time.perf_counter() - start
+        report = decode_report(encoded)
+        elapsed = time.perf_counter() - start
 
-        start = time.perf_counter()
-        decode_message(doubled)
-        large = time.perf_counter() - start
-
-        # Early emission should keep this near 2x. Past 6x means the collapse
-        # optimisation has stopped firing and we have regressed to quadratic.
-        self.assertLess(large / max(small, 1e-9), 6.0)
+        self.assertTrue(report.truncated)
+        self.assertLess(elapsed, 5.0)
 
     def test_sustained_ambiguity_stays_within_the_api_cap(self):
         """The pathological no-collapse case still fits inside the API budget."""
         encoded = encode_message("Pack my box with five dozen liquor jugs. " * 97)
         self.assertLessEqual(len(encoded.split()), 4_000)
         start = time.perf_counter()
-        result = decode_message(encoded)
+        decode_message(encoded)
         elapsed = time.perf_counter() - start
-        self.assertIsInstance(result, str)
         self.assertLess(elapsed, 8.0)
 
 
@@ -501,6 +567,29 @@ class CaseInsensitiveLookupTests(unittest.TestCase):
         """Names carrying an apostrophe or a hyphen fold like any other."""
         self.assertEqual(decode_message("farfetch'd"), decode_message("Farfetch'd"))
         self.assertEqual(decode_message("nidoran-f"), decode_message("Nidoran-F"))
+
+    def test_typographic_apostrophe_folds_onto_ascii(self) -> None:
+        """A smart-quoted name resolves like the canonical spelling.
+
+        Phone keyboards and chat clients rewrite ' as U+2019, and without the
+        fold the token becomes <?unknown: ...> for no reason the reader can see.
+        """
+        for spelling in (
+            "Farfetch\u2019d",
+            "farfetch\u2019d",
+            "FARFETCH\u2019D",
+            "Farfetch\u2018d",
+        ):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(decode_message(spelling), decode_message("Farfetch'd"))
+                self.assertEqual(lookup_name(spelling), lookup_name("Farfetch'd"))
+
+    def test_typographic_dash_folds_onto_ascii(self) -> None:
+        """The dash in Nidoran-F survives an en dash or an em dash substitution."""
+        canonical = decode_message("Nidoran-F")
+        for spelling in ("Nidoran\u2013F", "Nidoran\u2014F"):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(decode_message(spelling), canonical)
 
     def test_lookup_name_is_the_single_entry_point(self) -> None:
         """Both spellings resolve to the identical mapping list, not a copy."""

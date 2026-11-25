@@ -39,7 +39,7 @@ describe("splitMarkers", () => {
     expect(mismatch.kind).toBe("mismatch")
   })
 
-  it("classifies an unknown-Pokemon marker", () => {
+  it("classifies an unknown-Pokémon marker", () => {
     expect(splitMarkers("H<?unknown: FakeMon>l")).toEqual([
       { kind: "text", text: "H" },
       { kind: "unknown", text: "<?unknown: FakeMon>" },

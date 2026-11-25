@@ -51,6 +51,18 @@ class NamesEndpointTests(unittest.TestCase):
         names = response.json()["names"]
         self.assertEqual(names, sorted(NAME_INDEX))
 
+    def test_ships_the_folds_the_decoder_applies(self) -> None:
+        """The gate has to accept exactly the spellings the decoder accepts.
+
+        Restating the fold table in TypeScript would drift; serving it makes the
+        page's tolerance and the server's identical by construction.
+        """
+        from pokecipher.pokedex import TYPOGRAPHIC_FOLDS
+
+        folds = client.get("/api/names").json()["folds"]
+        self.assertEqual(folds, TYPOGRAPHIC_FOLDS)
+        self.assertEqual(folds["\u2019"], "'")
+
     def test_is_cacheable(self) -> None:
         """The list only changes on deploy, so it must not be refetched per keystroke."""
         response = client.get("/api/names")
@@ -60,6 +72,16 @@ class NamesEndpointTests(unittest.TestCase):
         """The frontend is a separate deployment, so GET must pass CORS too."""
         response = client.get("/api/names", headers={"Origin": "https://example.com"})
         self.assertEqual(response.headers["access-control-allow-origin"], "*")
+
+
+class CharTokenTests(unittest.TestCase):
+    """A ``[CHAR:N]`` token can never crash the decoder, whatever N is."""
+
+    def test_oversized_code_point_decodes_to_the_invalid_marker(self) -> None:
+        """Past the C int range this raised OverflowError and answered 500."""
+        response = client.post("/api/decode", json={"text": "[CHAR:999999999999999999999]"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"result": "<?>"})
 
 
 class RequestValidationTests(unittest.TestCase):
@@ -217,6 +239,66 @@ class ContractAndBoundaryTests(unittest.TestCase):
         bad = client.post("/api/encode", content=b"not json")
         self.assertEqual(set(bad.json()), {"error"})
         self.assertIsInstance(bad.json()["error"], str)
+
+
+class BranchBudgetResponseTests(unittest.TestCase):
+    """An over-budget decode says so; an in-budget one stays byte-identical."""
+
+    def test_decode_inside_the_budget_carries_only_result(self) -> None:
+        """The documented success shape is unchanged for ordinary messages."""
+        response = client.post("/api/decode", json={"text": "Zubat Weepinbell Ponyta"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"result"})
+
+    def test_over_budget_decode_is_flagged(self) -> None:
+        """A decode that dropped hypotheses is marked best-effort.
+
+        The text is still returned: the flag qualifies it, it does not replace it.
+        """
+        encoded = client.post(
+            "/api/encode", json={"text": "hello world this is a test of the cipher"}
+        ).json()["result"]
+        response = client.post("/api/decode", json={"text": encoded})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"result", "truncated"})
+        self.assertIs(response.json()["truncated"], True)
+
+
+class SurrogateHandlingTests(unittest.TestCase):
+    """Text that cannot be encoded as UTF-8 is refused, never half-processed."""
+
+    def test_decode_reports_an_unpaired_surrogate_token(self) -> None:
+        """[CHAR:55296] names a surrogate, so it renders as the invalid marker.
+
+        Before this was guarded the token decoded to a lone surrogate and the
+        response failed to serialise, returning 500 from a 13-byte request.
+        """
+        response = client.post("/api/decode", json={"text": "[CHAR:55296]"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["result"], "<?>")
+
+    def test_encode_rejects_a_lone_surrogate(self) -> None:
+        """A JSON-escaped unpaired surrogate is a client error, not a server crash."""
+        response = client.post(
+            "/api/encode",
+            content=b'{"text":"\\ud800"}',
+            headers={"content-type": "application/json"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("surrogate", response.json()["error"])
+
+    def test_encode_rejoins_an_escaped_surrogate_pair(self) -> None:
+        """A correctly escaped astral character travels as one code point."""
+        response = client.post(
+            "/api/encode",
+            content=b'{"text":"\\ud83d\\ude00"}',
+            headers={"content-type": "application/json"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["result"], "[CHAR:128512]")
+
+        decoded = client.post("/api/decode", json={"text": response.json()["result"]})
+        self.assertEqual(decoded.json()["result"], "😀")
 
 
 if __name__ == "__main__":

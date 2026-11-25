@@ -4,12 +4,13 @@ Public surface
 --------------
 * :func:`encode_message` — plaintext → space-separated Pokémon names.
 * :func:`decode_message` — Pokémon names → plaintext.
+* :func:`decode_report` — the same decode with its branch-budget flag.
 * :data:`decode_flexible_error_reporting` — historical alias of :func:`decode_message`.
 * Pokédex data and lookup index, re-exported for callers that inspect them.
 """
 
 from .constants import ASCII_MAX, ASCII_MIN, MAX_DECODE_BRANCHES, REGION_SIZE
-from .decoder import decode_message
+from .decoder import DecodeReport, decode_message, decode_report
 from .encoder import encode_message
 from .pokedex import (
     NAME_INDEX,
@@ -33,8 +34,10 @@ __all__ = [
     "REGION_NAMES",
     "REGION_SIZE",
     "REGIONS",
+    "DecodeReport",
     "decode_flexible_error_reporting",
     "decode_message",
+    "decode_report",
     "encode_message",
     "lookup_name",
 ]

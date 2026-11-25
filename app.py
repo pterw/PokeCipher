@@ -42,16 +42,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pokecipher import NAME_INDEX, decode_message, encode_message
+from pokecipher import NAME_INDEX, decode_report, encode_message
+from pokecipher.pokedex import TYPOGRAPHIC_FOLDS
 
 MAX_BODY_BYTES = 32 * 1024
 
-# The decoder emits positions as soon as they are final, so cost is close to
-# linear: ~1.2 s for 10,000 chars of prose on CPython 3.13. Text that sustains an
-# unresolved ambiguity throughout cannot collapse and stays quadratic (~3.3 s at
-# 4,100 chars, and ~13 s at 8,000). Capping here keeps the pathological case
-# inside the function's maxDuration instead of turning a huge paste into a
-# timeout.
+# Two costs matter. Decoding keeps every live hypothesis, which reaches ~5,200
+# for 500 chars of prose, so MAX_DECODE_BRANCHES bounds a step - that bound is
+# what makes the timing below linear, and it is also why a long decode can be
+# wrong (see decode_report). With the budget applied, ~1.2 s for 10,000 chars of
+# prose on CPython 3.13. Text that sustains an unresolved ambiguity throughout
+# cannot collapse and stays quadratic (~3.3 s at 4,100 chars, ~13 s at 8,000).
+# Capping here keeps the pathological case inside the function's maxDuration
+# instead of turning a huge paste into a timeout.
 MAX_TEXT_CHARS = 4_000
 
 # docs_url/redoc_url/openapi_url are off so the deployed surface stays exactly the
@@ -88,6 +91,23 @@ async def http_error_handler(request: Request, exc: StarletteHTTPException) -> J
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
 
+def decode_surrogate_pairs(text: str) -> str:
+    """Return scalar Unicode text or reject an unpaired surrogate with a 400.
+
+    Python's JSON parser combines valid escaped surrogate pairs into one code
+    point before the character limit is checked. It can leave a lone escaped
+    surrogate in the string. A strict UTF-16 decode rejects that surrogate before
+    it can reach a UTF-8 response.
+    """
+    try:
+        return text.encode("utf-16", "surrogatepass").decode("utf-16")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Field 'text' contains an unpaired surrogate and is not valid Unicode text.",
+        ) from exc
+
+
 async def read_text(request: Request) -> str:
     """Return the validated ``text`` field, or raise the matching HTTP error."""
     raw = await request.body()
@@ -109,7 +129,7 @@ async def read_text(request: Request) -> str:
         raise HTTPException(
             status_code=413, detail=f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."
         )
-    return text
+    return decode_surrogate_pairs(text)
 
 
 @app.get("/api/names")
@@ -122,11 +142,16 @@ async def names() -> JSONResponse:
     here, never copied into TypeScript, so changing the dex reaches the UI without
     a second edit.
 
+    ``folds`` — the typographic punctuation the decoder folds before matching —
+    travels with it for the same reason. The decoder accepts ``Farfetch\u2019d``;
+    a gate that only lowercased would refuse to start that decode. Shipping the
+    table rather than restating it in TypeScript means the two cannot disagree.
+
     Cached for an hour. The payload is ~1.8 KB and only changes when the Pokédex
     does, which is a deploy.
     """
     return JSONResponse(
-        {"names": sorted(NAME_INDEX)},
+        {"names": sorted(NAME_INDEX), "folds": TYPOGRAPHIC_FOLDS},
         headers={"Cache-Control": "public, max-age=3600"},
     )
 
@@ -142,7 +167,18 @@ async def encode(request: Request) -> dict[str, str]:
 
 
 @app.post("/api/decode")
-async def decode(request: Request) -> dict[str, str]:
-    """Decode a sequence of Pokémon names back into plaintext."""
+async def decode(request: Request) -> JSONResponse:
+    """Decode a sequence of Pokémon names back into plaintext.
+
+    ``truncated`` is added only when the decoder exceeded its branch budget, so
+    the response for every message that fits stays byte-identical to the
+    documented contract. When it is present, the text is best-effort: the
+    decoder dropped hypotheses, and a plain character may be wrong even though
+    nothing in the text says so. The frontend surfaces it as a warning.
+    """
     text = await read_text(request)
-    return {"result": await run_in_threadpool(decode_message, text)}
+    report = await run_in_threadpool(decode_report, text)
+    payload: dict[str, object] = {"result": report.text}
+    if report.truncated:
+        payload["truncated"] = True
+    return JSONResponse(payload)

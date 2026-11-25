@@ -52,7 +52,8 @@ pokecipher/      Cipher core. One concern per module.
   markers.py     Formatting of the [x,y] and {x,y} markers.
   state.py       Immutable per-character occurrence counts.
   encoder.py     Plaintext → Pokémon names.
-  decoder.py     Pokémon names → plaintext (fork/merge branch engine).
+  decoder.py     Pokémon names → plaintext (fork/merge branch engine), and the
+                 branch-budget report that qualifies a best-effort decode.
 cipher.py        Backwards-compatible re-export shim. Do not add logic here.
 app.py           FastAPI app: POST /api/encode, POST /api/decode, and
                  GET /api/names (the decoder's vocabulary, for the frontend's
@@ -211,6 +212,14 @@ not on PATH in this environment.
 - **Cap limits at the transport, not in the core.** Decode cost rises when an
   ambiguity survives an entire message, so `app.MAX_TEXT_CHARS` bounds input.
   Keep the cipher functions total and unbounded; enforce policy at the boundary.
+- **A bounded search must admit it was bounded.** `MAX_DECODE_BRANCHES` keeps
+  decoding linear, and dropping hypotheses can drop the true reading, so
+  `decode_message` is the text-only form of `decode_report`, which also says
+  whether the budget was exceeded. Anything that shows a decode to a person uses
+  the report: an unflagged decode is a faithful reading, a flagged one is
+  best-effort. Do not mark the overflow inside the decoded text — that
+  desynchronises the occurrence counts (measured, see
+  `test_cipher_invariants.py`).
 - **Ciphertext is a compatibility surface.** Changing the Pokédex lists or the
   algorithm invalidates every message ever encoded.
 
@@ -222,6 +231,17 @@ not on PATH in this environment.
 - Long-running commands make PowerShell output capture unreliable. Redirect to a
   file and read that instead; run `Stop-Process -Name python` if orphaned runs
   leave the shell unresponsive.
+- The two display faces are vendored in `next-app/app/fonts` (SIL OFL, licence
+  files alongside) and loaded with `next/font/local`. Do not reintroduce
+  `next/font/google`: it downloads during `next build`, so the build fails
+  anywhere without egress to `fonts.googleapis.com`. Nothing in the app may
+  `@import` a remote font either; one such import shipped in the page's critical
+  CSS until it was removed.
+- Anything that rewrites `next-app/.next` — `npm run build`, `rm -rf .next` —
+  corrupts a dev server that is already running, and the failure surfaces as a
+  Turbopack "failed to restore task data" panic, not as an obvious conflict.
+  Stop the server first. The same applies to `npm ci`, which replaces
+  `node_modules` underneath it.
 
 ## Testing rules
 
@@ -236,9 +256,11 @@ not on PATH in this environment.
 - Changing the Pokédex lists or the algorithm invalidates all previously
   generated ciphertext. Call that out explicitly in the pull request.
 - Frontend unit tests are Vitest files co-located with the code they cover
-  (`lib/markers.test.ts`). They run in the `node` environment because the code
-  under test is pure; component tests need `jsdom` and `@testing-library/react`
-  added first. CI runs `npm run test` before lint, typecheck and build.
+  (`lib/markers.test.ts`). They run in the default `node` environment because the
+  code under test is pure. A component test opts itself into jsdom with a
+  `// @vitest-environment jsdom` docblock (`components/page.test.tsx`) and stubs
+  `fetch`, so the suite never needs a running API. CI runs `npm run test` before
+  lint, typecheck and build.
 
 ## Style rules
 

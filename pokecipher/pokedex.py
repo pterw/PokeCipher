@@ -155,27 +155,59 @@ validate_regions(REGIONS, REGION_NAMES)
 NAME_INDEX: dict[PokemonName, list[tuple[str, int]]] = build_name_index(REGIONS, REGION_NAMES)
 
 
+#: Characters a keyboard or chat client may substitute for the ASCII ones that
+#: appear in a name. Three names carry punctuation and one of them - Farfetch'd -
+#: contains the apostrophe that smart-quote substitution rewrites.
+#: The typographic characters that chat clients, mobile keyboards and word
+#: processors substitute for the ASCII ones a name is stored with, mapped onto the
+#: spelling the dex uses. Public because ``/api/names`` serves it alongside the
+#: name list: the frontend's decode gate has to accept exactly the spellings the
+#: decoder accepts, and a fold table copied into TypeScript would drift from this
+#: one the first time either side changed.
+TYPOGRAPHIC_FOLDS: dict[str, str] = {
+    "\u2019": "'",
+    "\u2018": "'",
+    "\u00b4": "'",
+    "\u2013": "-",
+    "\u2014": "-",
+}
+
+_FOLD_TABLE = str.maketrans(TYPOGRAPHIC_FOLDS)
+
+
+def fold_name(name: str) -> str:
+    """Return the tolerant lookup key for ``name``.
+
+    Case is ignored, and the typographic punctuation that mobile keyboards and
+    chat clients produce is folded onto ASCII, so ``Farfetch\u2019d`` reaches the
+    same entry as ``Farfetch'd``. Both folds are the same argument: the encoder
+    produces one canonical spelling, and the decoder should still recognise the
+    text a person actually pastes.
+    """
+    return name.casefold().translate(_FOLD_TABLE)
+
+
 def build_folded_index(
     index: dict[PokemonName, list[tuple[str, int]]],
 ) -> dict[str, list[tuple[str, int]]]:
-    """Build a case-folded view of ``index`` for tolerant decoding.
+    """Build a case- and punctuation-folded view of ``index`` for tolerant decoding.
 
     Raises :class:`PokedexError` if two distinct names fold together with
-    different mappings, which would make case-insensitive lookup ambiguous in a
-    way the cased index is not. Checked here rather than assumed, in keeping with
+    different mappings, which would make the tolerant lookup ambiguous in a way
+    the canonical index is not. Checked here rather than assumed, in keeping with
     the module's fail-at-import contract.
     """
     folded: dict[str, list[tuple[str, int]]] = {}
     for name, mappings in index.items():
-        key = name.casefold()
+        key = fold_name(name)
         existing = folded.get(key)
         if existing is not None and existing != mappings:
-            raise PokedexError(f"Case-folded name collision on {key!r}.")
+            raise PokedexError(f"Folded name collision on {key!r}.")
         folded[key] = mappings
     return folded
 
 
-#: Case-folded view of :data:`NAME_INDEX`, for :func:`lookup_name`.
+#: Folded view of :data:`NAME_INDEX`, for :func:`lookup_name`.
 FOLDED_NAME_INDEX: dict[str, list[tuple[str, int]]] = build_folded_index(NAME_INDEX)
 
 
@@ -183,11 +215,13 @@ def lookup_name(token: PokemonName) -> list[tuple[str, int]] | None:
     """Return the candidate (character, region) pairs for ``token``, ignoring case.
 
     Produce strictly, consume tolerantly. The encoder only ever emits canonical
-    capitalisation, but ciphertext routed through a URL, a chat client or a
-    spreadsheet often arrives lowercased, and the failure is silent: every token
-    becomes ``<?unknown: ...>`` with nothing to indicate that case was the cause.
+    capitalisation and ASCII punctuation, but ciphertext routed through a URL, a
+    chat client or a spreadsheet often arrives lowercased, and a keyboard with
+    smart punctuation rewrites the apostrophe in ``Farfetch'd``. Both failures
+    are silent without this fold: every token becomes ``<?unknown: ...>`` with
+    nothing to indicate why.
     """
     mappings = NAME_INDEX.get(token)
     if mappings is not None:
         return mappings
-    return FOLDED_NAME_INDEX.get(token.casefold())
+    return FOLDED_NAME_INDEX.get(fold_name(token))

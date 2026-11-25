@@ -37,7 +37,15 @@ const nextConfig: NextConfig = {
   // Next treats 127.0.0.1 and localhost as different origins and blocks the HMR
   // socket for the one it was not started on. Without this, browsing the app on
   // 127.0.0.1 leaves HMR dead and the dev client falls back to full reloads.
-  allowedDevOrigins: ["127.0.0.1"],
+  //
+  // The same check guards `/_next/static/*` itself, and it fails worse there: a
+  // remote dev host that is not listed still gets the HTML with 200, while every
+  // script and stylesheet it references comes back 403. The page then renders
+  // unstyled and inert, which reads as a broken app rather than a rejected
+  // origin. Hosted workspaces serve the dev server from a per-sandbox host
+  // (`<port>-<sandbox>.e2b.app`), so that family is listed; add any other proxy
+  // you use here. Development only: `next build` and `next start` ignore the list.
+  allowedDevOrigins: ["127.0.0.1", "*.e2b.app"],
 
   async rewrites() {
     const origin = API_ORIGIN || (ON_VERCEL ? "" : LOCAL_API_ORIGIN)

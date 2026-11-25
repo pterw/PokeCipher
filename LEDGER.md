@@ -448,3 +448,122 @@ state the fix and forbid `vercel alias set` re-pointing, which would recreate
 the pinned aliases. `DOD.md` and the ledger entries above keep their historical
 wording: they recorded what was true when they were written.
 
+
+## Correctness pass — truncation, surrogates, folding (2026-11-24)
+
+Branch `arena/b592a854-pokecipher`, nine commits, all local evidence gathered in
+one session against a running app (`uvicorn app:app --port 8000` plus
+`next dev`, and a jsdom render of the real page driving Encode → Swap → Decode
+through the live API). No production deployment was triggered.
+
+### What was measured first
+
+| Probe | Result |
+|---|---|
+| `decode(encode("hello world this is a test of the cipher"))` | `hello wnrld this ]s [a,h] test {o}[a,f] t[a,h]e cbphe[J,r]` — 3 lost characters, no marker |
+| Realistic short messages that decode incorrectly | **2 of 15**, first at 32 characters |
+| Random sentences (3–14 words) that decode incorrectly | **75 of 300** |
+| Uncapped hypotheses, 500 chars of prose | **5,184**, 4.2 s — the budget is what makes decoding linear |
+| Raise the cap to 128 / 512 / 1024 and re-test prose | still wrong (0.46 s / 2.5 s / 5.3 s) — tuning cannot fix it |
+| `POST /api/decode {"text":"[CHAR:55296]"}` | **500**, `UnicodeEncodeError` during response serialisation |
+| `POST /api/encode {"text":"\ud800"}` | **200**, `[CHAR:55296]` — the API could emit ciphertext it could not read |
+| `decode_message("Farfetch’d")` | `<?unknown: Farfetch’d>`; the ASCII spelling worked |
+| Truncation flag prototype, 300 sentences | **0 false negatives**, 26 false positives |
+
+### Decisions and non-decisions
+
+- **The budget stays at 32.** Raising it buys short sentences at 5× the 4,000-character
+  cost and still returns wrong text on long ones. The defect was silence, not the
+  number, so `decode_report` reports the overflow and `decode_message` is unchanged.
+- **No marker inside the decoded text.** Tested and rejected earlier in
+  `test_cipher_invariants.py`; re-confirmed by reading the reason (count
+  desynchronisation) before choosing an out-of-band flag.
+- **No change to `test_cipher.py` or `test_cipher_pyramidal.py` expectations.** Two
+  assertions in the pyramidal suite were deleted only because the following line
+  subsumes them.
+- **`next-themes` removed** rather than a dark palette built; the app has one palette
+  by design and the hotkey toggled a class with no styles.
+- **Phase 2 (visual work) not started**, per the owner: yellow terminal border,
+  terminal size, hero spacing, pistachio `#d7f5c4` replacement. Recording that these
+  remain open so the next pass does not re-discover them.
+
+### Gates
+
+| Gate | Command | Result |
+|---|---|---|
+| Backend tests | `python -m pytest -q` | **238 passed**, 13,617 subtests, 7.9 s |
+| Backend coverage | `python -m pytest --cov --cov-report=term` | **98.6%**, gate 96% reached |
+| Backend lint | `python -m ruff check .` | clean |
+| Backend format | `python -m ruff format --check .` | 29 files already formatted |
+| Frontend tests | `npm run test` | **49 passed** (2 files) |
+| Frontend lint | `npm run lint` | clean |
+| Frontend typecheck | `npm run typecheck` | clean |
+| Frontend build | `NEXT_FONT_GOOGLE_MOCKED_RESPONSES=… npm run build` | compiled, 5 static pages |
+
+`npm run build` needs `fonts.googleapis.com`; the sandbox blocks it, so the build was
+verified with Next's documented mocked-responses hook. That is a network dependency
+worth removing by self-hosting the two faces, which PRODUCT.md already lists as an
+open decision — not changed here.
+
+### Observed after the change, through the running app
+
+| Probe | Result |
+|---|---|
+| `decode` of the 40-character sentence | `{"result":"hello wnrld …","truncated":true}` |
+| Same message driven through the page in jsdom | warning line shown, `role="status"`, amber |
+| `See you at the Pokemon Center.` | exact decode, no warning |
+| `[CHAR:55296]` | 200 `<?>` |
+| `Farfetch’d` | `r`, identical to `Farfetch'd` |
+| `<title>` | `PokéCipher` |
+
+## 2026-11-24 — fonts vendored, build no longer needs the network
+
+`npm run build` used to fetch both faces from `fonts.googleapis.com` during the
+build, so it failed with a hard error anywhere without egress to that host. That
+workaround is retired: the same two latin subsets now live in `next-app/app/fonts`
+with their OFL licences, `layout.tsx` loads them through `next/font/local`, and the
+build runs with no font-related environment variable at all. `NEXT_FONT_GOOGLE_MOCKED_RESPONSES`
+is no longer needed by anyone, including CI.
+
+A second, separate Google Fonts dependency turned up while removing the first: the
+vendored 8bit stylesheet `components/ui/8bit/styles/retro.css` began with
+`@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap")`,
+and because `BitCard` imports that file it landed in the page's critical CSS. Every
+production visitor paid a render-blocking third-party request for a face the page
+already self-hosted. The `@import` is gone and `.retro` now resolves its family
+through `var(--font-pixel)`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Backend tests | `python -m pytest -q` | 238 passed, 13,617 subtests |
+| Frontend tests | `npm run test` | **53 passed** (3 files) |
+| Frontend lint + typecheck | `npm run lint` / `npm run typecheck` | clean |
+| Frontend build | `env -u NEXT_FONT_GOOGLE_MOCKED_RESPONSES npm run build` | compiled, 5 static pages |
+| Google Fonts in build output | `grep -rl fonts.googleapis.com .next/static .next/server` | one hit, and it is the word inside a source map of this very comment |
+
+Emitted faces, from the build output: `press_start_2p_latin_400-s.p.….woff2` and
+`vt323_latin_400-s.p.….woff2`, each with a generated fallback face
+(`size-adjust:219.15%` and `87.66%`), so the layout-shift compensation that
+`next/font/google` provided is unchanged.
+
+## 2026-11-25 — PR #17 review follow-up
+
+- The web preview for `arena/b592a854-pokecipher` now has a branch-scoped
+  `NEXT_PUBLIC_API_URL` pointing to the API preview for that branch. The old
+  web preview used the production API, whose responses lacked `folds` and
+  `truncated`.
+- Node 24 is the common major for local development, GitHub Actions, and Vercel.
+  Vercel previously selected Node 26 from the open-ended engine range even
+  though the project setting was Node 24.
+- The budget warning describes the risk of incorrect characters. An in-budget
+  decode can still have multiple valid readings, and cutting ciphertext into
+  pieces starts the occurrence counts over at each boundary.
+- On Python 3.12, escaped emoji reach the character check as one code point.
+  The UTF-8 and escaped forms of 2,700 emoji both returned 200 on base and head.
+  The escaped form of 2,730 emoji exceeded the 32 KiB body limit on both.
+  The README documents both limits and the surrogate helper explains the parser.
+
+Local checks on Python 3.12 and Node 24 passed: 242 pytest tests, 13,627
+subtests, 98.6% coverage, 61 Vitest tests, Ruff, ESLint, TypeScript, and
+`next build`. The revised warning test failed against the old copy and passed
+with the revised copy.
