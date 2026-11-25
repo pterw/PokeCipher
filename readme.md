@@ -132,7 +132,8 @@ rather than a rejected origin.
 ## Continuous integration
 
 The [CI workflow](.github/workflows/ci.yml) runs lint and type checks first,
-then Pytest on Python 3.10 and 3.12 and Vitest on Node 24. Once those pass,
+then Pytest on Python 3.10 and 3.12 and Vitest on Node 24. The Python 3.12
+job enforces the coverage floor. Once those checks pass,
 it builds Next.js and checks smart punctuation and branch-budget reporting
 through the running web server and FastAPI. With both local servers running,
 run the same smoke test from the repository root.
