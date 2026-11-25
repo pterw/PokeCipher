@@ -92,16 +92,12 @@ async def http_error_handler(request: Request, exc: StarletteHTTPException) -> J
 
 
 def decode_surrogate_pairs(text: str) -> str:
-    """Join UTF-16 surrogate pairs and reject the unpaired ones.
+    """Return scalar Unicode text or reject an unpaired surrogate with a 400.
 
-    JSON permits astral characters to be written as two escapes
-    (``"\\ud83d\\ude00"``), and ``json.loads`` keeps them as two lone surrogates
-    rather than one character. Re-encoding through UTF-16 puts the pair back
-    together, so a client that escapes properly is served correctly.
-
-    A genuinely unpaired surrogate cannot be encoded as UTF-8, so no response
-    could ever carry it back: the round trip through UTF-16 fails and the caller
-    sees a 400 instead of a 500 raised while serialising the reply.
+    Python's JSON parser combines valid escaped surrogate pairs into one code
+    point before the character limit is checked. It can leave a lone escaped
+    surrogate in the string. A strict UTF-16 decode rejects that surrogate before
+    it can reach a UTF-8 response.
     """
     try:
         return text.encode("utf-16", "surrogatepass").decode("utf-16")

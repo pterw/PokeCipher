@@ -545,3 +545,25 @@ Emitted faces, from the build output: `press_start_2p_latin_400-s.p.….woff2` a
 `vt323_latin_400-s.p.….woff2`, each with a generated fallback face
 (`size-adjust:219.15%` and `87.66%`), so the layout-shift compensation that
 `next/font/google` provided is unchanged.
+
+## 2026-11-25 — PR #17 review follow-up
+
+- The web preview for `arena/b592a854-pokecipher` now has a branch-scoped
+  `NEXT_PUBLIC_API_URL` pointing to the API preview for that branch. The old
+  web preview used the production API, whose responses lacked `folds` and
+  `truncated`.
+- Node 24 is the common major for local development, GitHub Actions, and Vercel.
+  Vercel previously selected Node 26 from the open-ended engine range even
+  though the project setting was Node 24.
+- The budget warning describes the risk of incorrect characters. An in-budget
+  decode can still have multiple valid readings, and cutting ciphertext into
+  pieces starts the occurrence counts over at each boundary.
+- On Python 3.12, escaped emoji reach the character check as one code point.
+  The UTF-8 and escaped forms of 2,700 emoji both returned 200 on base and head.
+  The escaped form of 2,730 emoji exceeded the 32 KiB body limit on both.
+  The README documents both limits and the surrogate helper explains the parser.
+
+Local checks on Python 3.12 and Node 24 passed: 242 pytest tests, 13,627
+subtests, 98.6% coverage, 61 Vitest tests, Ruff, ESLint, TypeScript, and
+`next build`. The revised warning test failed against the old copy and passed
+with the revised copy.

@@ -22,8 +22,8 @@ export interface DecodeResult {
   /**
    * True when the decoder exceeded its branch budget and dropped hypotheses, so
    * `text` is best-effort: a plain character in it may be wrong. Only ever set
-   * by the server; absent means the decode was exact (modulo `[x,y]` markers,
-   * which are the cipher working as designed).
+   * by the server. If absent, no hypotheses were dropped to meet the budget.
+   * Ambiguity and mismatch markers can still appear in the result.
    */
   truncated: boolean
 }
@@ -74,8 +74,8 @@ async function call(
  * The decoder's vocabulary: every name it accepts, plus the punctuation it folds
  * before matching.
  *
- * Both halves come from `/api/names` in one response, because the gate has to
- * accept exactly the spellings the server accepts. A fold table restated in
+ * Both halves come from `/api/names` in one response so the gate and decoder
+ * share the same punctuation substitutions. A fold table restated in
  * TypeScript would drift from the server's the first time either side changed,
  * and the symptom would be silent: a paste the API would have decoded, refused by
  * the page before it could ask.
@@ -89,7 +89,7 @@ export interface Vocabulary {
 export const EMPTY_VOCABULARY: Vocabulary = { names: new Set(), folds: {} }
 
 /**
- * Fold a token the way the server does before matching it against a name.
+ * Lowercase a token and apply the server's punctuation substitutions.
  *
  * Case first, then the served punctuation table, so `Farfetch’d` reaches
  * `Farfetch'd` exactly as `pokedex.fold_name` does.
