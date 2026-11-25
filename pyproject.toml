@@ -19,7 +19,7 @@ description = "A stateful polyalphabetic substitution cipher over Pokemon names.
 # AGENTS.md commits to "Python 3.10+ syntax"; keep the metadata baseline on
 # that policy rather than on whichever runtime the deployment happens to use.
 requires-python = ">=3.10"
-dependencies = ["fastapi==0.141.1"]
+dependencies = ["fastapi==0.162.5"]
 
 [project.optional-dependencies]
 # httpx backs fastapi.testclient.TestClient; uvicorn serves app.py locally on the
