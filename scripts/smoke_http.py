@@ -2,7 +2,8 @@
 
 import argparse
 import json
-from urllib.request import Request, urlopen
+from http.client import HTTPConnection, HTTPSConnection
+from urllib.parse import urlsplit
 
 # Fixed published-encoder output for "hello world this is a test of the cipher".
 OVER_BUDGET_CIPHERTEXT = (
@@ -16,17 +17,27 @@ OVER_BUDGET_RESULT = "hello wnrld this ]s [a,h] test {o}[a,f] t[a,h]e cbphe[J,r]
 
 def request_json(url: str, text: str | None = None) -> dict[str, object]:
     """Fetch a JSON object and require HTTP 200 from the requested endpoint."""
-    request = Request(url)
-    if text is not None:
-        request = Request(
-            url,
-            data=json.dumps({"text": text}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-    with urlopen(request, timeout=10) as response:
-        if response.status != 200:
-            raise AssertionError(f"{url} returned HTTP {response.status}")
-        payload = json.load(response)
+    target = urlsplit(url)
+    if target.scheme not in {"http", "https"} or target.hostname is None:
+        raise ValueError(f"Expected an HTTP(S) URL, got {url!r}")
+    connect = HTTPSConnection if target.scheme == "https" else HTTPConnection
+    connection = connect(target.hostname, target.port, timeout=10)
+    try:
+        if text is None:
+            connection.request("GET", target.path)
+        else:
+            connection.request(
+                "POST",
+                target.path,
+                body=json.dumps({"text": text}),
+                headers={"Content-Type": "application/json"},
+            )
+        with connection.getresponse() as response:
+            if response.status != 200:
+                raise AssertionError(f"{url} returned HTTP {response.status}")
+            payload = json.load(response)
+    finally:
+        connection.close()
     if not isinstance(payload, dict):
         raise AssertionError(f"{url} returned a non-object response")
     return payload
