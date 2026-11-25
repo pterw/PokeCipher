@@ -592,11 +592,11 @@ class Layer7_EdgeCasesAndStress(unittest.TestCase):
     def test_encode_empty_string_roundtrip(self):
         self.assertEqual(decode_message(encode_message("")), "")
 
-    def test_decode_large_valid_message_is_at_least_as_long_as_the_input(self) -> None:
-        """Given a long valid message, when round-tripped, then the decode is at least as long."""
-        msg = (string.ascii_letters + string.digits + " .,!") * 4
-        decoded = decode_message(encode_message(msg))
-        self.assertGreaterEqual(len(decoded), len(msg))
+    def test_decode_large_unambiguous_message_roundtrips(self) -> None:
+        """Given a long unambiguous message, when round-tripped, then every character survives."""
+        # These characters use names that are unique across all three region tables.
+        msg = "UVWv!@" * 100
+        self.assertEqual(decode_message(encode_message(msg)), msg)
 
 
 if __name__ == "__main__":
