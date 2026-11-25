@@ -102,11 +102,6 @@ class RequestValidationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"error": "Expected a JSON object body under 32 KiB."})
 
-    def test_oversized_body_is_rejected(self) -> None:
-        response = client.post("/api/encode", content=b"x" * (32 * 1024 + 1))
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"error": "Expected a JSON object body under 32 KiB."})
-
     def test_missing_text_field_is_rejected(self) -> None:
         response = client.post("/api/encode", json={"message": "Hello"})
         self.assertEqual(response.status_code, 400)
@@ -178,8 +173,8 @@ class ContractAndBoundaryTests(unittest.TestCase):
             response.json(), {"error": f"Field 'text' exceeds {MAX_TEXT_CHARS} characters."}
         )
 
-    def test_body_exactly_at_the_size_limit_is_accepted(self) -> None:
-        """A 32 KiB body is legal; one byte more is not."""
+    def test_body_size_boundary_with_valid_json(self) -> None:
+        """Given valid JSON, when sent at 32 KiB or one byte over, then only 32 KiB succeeds."""
         prefix = b'{"text": "", "pad": "'
         suffix = b'"}'
         pad = b"x" * (32 * 1024 - len(prefix) - len(suffix))
@@ -190,8 +185,10 @@ class ContractAndBoundaryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"result": ""})
 
-        response = client.post("/api/encode", content=body + b"x")
+        # Trailing JSON whitespace keeps the body valid while crossing the cap.
+        response = client.post("/api/encode", content=body + b" ")
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "Expected a JSON object body under 32 KiB."})
 
     def test_null_text_is_rejected(self) -> None:
         """JSON null is not a string."""
@@ -211,13 +208,10 @@ class ContractAndBoundaryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"result": ""})
 
-    def test_unicode_text_round_trips_through_the_api(self) -> None:
-        """Non-ASCII characters travel as [CHAR:N] tokens and come back intact.
-
-        The decode is deliberately lossy at one position: the Kanto name for
-        'f' is also a Johto name for 'a', and since the earlier 'a' already
-        forces region-1 for its next occurrence, both readings survive to the
-        end. The marker is the cipher working as designed, not a defect.
+    def test_unicode_survives_an_ambiguous_decode(self) -> None:
+        """Given mixed Unicode text, when encoded and decoded through the API,
+        then the encoding uses character tokens and the decode preserves the
+        non-ASCII text alongside the expected ASCII ambiguity.
         """
         original = "café ☕ 日本語 😀"
         encoded = client.post("/api/encode", json={"text": original}).json()["result"]
@@ -225,10 +219,6 @@ class ContractAndBoundaryTests(unittest.TestCase):
 
         decoded = client.post("/api/decode", json={"text": encoded}).json()["result"]
         self.assertEqual(decoded, "ca[a,f]é ☕ 日本語 😀")
-        # Every non-ASCII character survives verbatim.
-        for char in "é☕日本語😀":
-            with self.subTest(char=char):
-                self.assertIn(char, decoded)
 
     def test_response_is_json_with_the_documented_keys(self) -> None:
         """Success carries exactly 'result'; failure carries exactly 'error'."""

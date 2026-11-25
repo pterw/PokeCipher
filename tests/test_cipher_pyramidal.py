@@ -357,18 +357,9 @@ class Layer5_MultiCharDecoding(unittest.TestCase):
         self.assertIn("<?unknown: Mewtwo>", result)
         self.assertIn("l", result)
 
-    def test_decode_state_mismatch_uses_curly_braces(self):
-        """A genuine state-mismatch error uses {x,y} curly-brace notation."""
-        # Construct an impossible token sequence:
-        # 'Bulbasaur' as the SECOND token would expect region 1 for ' ',
-        # but Bulbasaur is only in Kanto (region 0).  Force a mismatch by
-        # passing Bulbasaur twice: first resolves fine (region 0), second
-        # expects region 1 which Bulbasaur cannot satisfy.
-        # Confirm that the state-mismatch path is exercised.
-        result = decode_message("Bulbasaur Bulbasaur")
-        # Second Bulbasaur: ' ' has count 1, expected region 1,
-        # but Bulbasaur only maps to region 0 → state mismatch → {' '}
-        self.assertIn("{", result)
+    def test_decode_state_mismatch_uses_curly_braces(self) -> None:
+        """Given two Bulbasaur tokens, when decoded, then the second is a curly-brace mismatch."""
+        self.assertEqual(decode_message("Bulbasaur Bulbasaur"), " { }")
 
     def test_decode_retroactive_resolution_removes_ambiguity(self):
         """A position that was ambiguous but later narrowed resolves to one character.
@@ -511,22 +502,13 @@ class Layer7_EdgeCasesAndStress(unittest.TestCase):
         tokens = encode_message(text).split()
         self.assertEqual(len(tokens), REGION_SIZE)
 
-    def test_decode_all_printable_ascii_roundtrip(self):
-        """All 95 printable ASCII chars round-trip; a small set expose known ambiguities.
-
-        The cipher's regional overlap means 5 positions are ambiguous or mismatched
-        when every character appears exactly once in order.  The 90 remaining
-        positions decode correctly — verified for the opening sequence (space through @).
+    def test_decode_all_printable_ascii_preserves_the_prefix(self) -> None:
+        """Given all printable ASCII, when encoded and decoded in order,
+        then the first 33 characters reproduce space through @ exactly.
         """
         text = "".join(chr(c) for c in range(ASCII_MIN, ASCII_MAX + 1))
-        encoded = encode_message(text)
-        decoded = decode_message(encoded)
-        # The first 33 characters (space → '@', no cross-region collisions) are clean.
-        clean_prefix = text[:33]  # ' !"#$%&\'()*+,-./0123456789:;<=>?@'
-        self.assertTrue(
-            decoded.startswith(clean_prefix),
-            f"First 33 chars should decode cleanly; got: {decoded[:40]!r}",
-        )
+        decoded = decode_message(encode_message(text))
+        self.assertEqual(decoded[:33], text[:33])
 
     def test_encode_long_repeat_wraps_correctly(self):
         """A character repeated 30 times cycles regions correctly at every position."""
@@ -610,26 +592,11 @@ class Layer7_EdgeCasesAndStress(unittest.TestCase):
     def test_encode_empty_string_roundtrip(self):
         self.assertEqual(decode_message(encode_message("")), "")
 
-    def test_state_mismatch_marker_uses_curly_braces(self):
-        """State-mismatch errors use {x,y} notation (distinct from [x,y] ambiguity)."""
-        # Force a mismatch: Bulbasaur maps only to (' ', region 0).
-        # After decoding the first space (count becomes 1), the second Bulbasaur
-        # requires region 1 for ' ' (count 1 % 3 = 1) but only has region 0 → mismatch.
-        result = decode_message("Bulbasaur Bulbasaur")
-        self.assertIn("{", result)
-        self.assertNotIn("[", result)  # must NOT also use the ambiguity bracket
-
-    def test_decode_large_valid_message(self):
-        """A long message encodes and decodes without raising an exception."""
-        import string
-
-        msg = (string.ascii_letters + string.digits + " .,!") * 4
-        # Run encode and decode; verify no exception is raised.
-        encoded = encode_message(msg)
-        decoded = decode_message(encoded)
-        # The decoded output is at least as long as the original (markers expand positions).
-        # This subsumes the type and non-emptiness checks that used to sit here.
-        self.assertGreaterEqual(len(decoded), len(msg))
+    def test_decode_large_unambiguous_message_roundtrips(self) -> None:
+        """Given a long unambiguous message, when round-tripped, then every character survives."""
+        # These characters use names that are unique across all three region tables.
+        msg = "UVWv!@" * 100
+        self.assertEqual(decode_message(encode_message(msg)), msg)
 
 
 if __name__ == "__main__":
