@@ -533,10 +533,6 @@ class TestCompatibilityShim(unittest.TestCase):
         self.assertEqual(cipher.region_names, ["Kanto", "Johto", "Hoenn"])
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class CaseInsensitiveLookupTests(unittest.TestCase):
     """Ciphertext decodes regardless of the case it arrives in.
 
@@ -599,3 +595,7 @@ class CaseInsensitiveLookupTests(unittest.TestCase):
     def test_folded_index_has_no_collisions(self) -> None:
         """Folding is only safe because no two names collide; assert that holds."""
         self.assertEqual(len(FOLDED_NAME_INDEX), len(NAME_INDEX))
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
