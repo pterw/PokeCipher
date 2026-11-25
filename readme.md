@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/wordmark.svg" alt="PokéCipher" width="620" />
+  <img src="docs/assets/wordmark.svg" alt="PokéCipher" width="620" />
 </p>
 
 <p align="center">
@@ -81,6 +81,8 @@ flowchart TD
 | [`app.py`](app.py) | Validates HTTP input, runs the synchronous cipher in a threadpool, and returns JSON. |
 | [`pokecipher/`](pokecipher/) | Owns the regional dexes, name normalization, and encode/decode logic. |
 | [`cipher.py`](cipher.py) | Keeps the historical Python import path working. |
+| [`tests/`](tests/) | Python unit, API, and asset tests. |
+| [`docs/`](docs/) | Project notes, design references, asset generators, and images. |
 
 The page fetches the vocabulary and punctuation substitutions together, so
 Python owns the rules used by the decode gate. Decode results use markers for
@@ -232,7 +234,7 @@ an hour.
   still lies at 1,024 branches, at 5 s per 1,000 characters), so the API reports
   `truncated` so the caller knows hypotheses were dropped. An unflagged decode
   can still contain ambiguity or mismatch markers. The cap's numbers and the
-  reasoning behind them live in `test_cipher_invariants.py`.
+  reasoning behind them live in [the cipher invariant tests](tests/test_cipher_invariants.py).
 - **Decode time depends on how much ambiguity survives.** The decoder emits each
   position as soon as it is final, so ordinary text stays close to linear —
   measured on CPython 3.13, ~1.2 s for 10,000 characters of prose at the shipped
@@ -248,22 +250,22 @@ an hour.
 
 ## Branding assets
 
-The wordmark and the favicon are generated rather than hand-drawn, so they stay
-in step with the palette instead of drifting from it:
+The wordmark and browser icons ship as generated assets. Install FontTools
+with WOFF2 support to regenerate the wordmark from the frontend font.
 
 ```bash
-python docs/make_wordmark.py                # writes docs/wordmark.svg
+python -m pip install "fonttools[woff]==4.69.1"
+python docs/make_wordmark.py                # writes docs/assets/wordmark.svg
 python docs/make_favicon.py                 # rewrites favicon.ico from icon.svg
 python docs/make_favicon.py <sprite.png>    # rewrites icon.svg and favicon.ico
 ```
 
-Both outputs are committed, so neither GitHub nor the deployment ever needs to
-run these scripts.
+The generated files are committed. Run the scripts when editing the artwork.
 
-- **`docs/wordmark.svg`** draws every letter from explicit pixel rectangles.
-  GitHub cannot load webfonts inside a README image, so text set with `<text>`
-  would fall back to whatever the viewer happens to have installed and stop
-  looking like the app.
+- **[README wordmark](docs/assets/wordmark.svg)** uses the actual outlines
+  from the frontend's [Press Start 2P font](next-app/app/fonts/README.md).
+  It keeps the hero's tighter tracking, yellow `Poké`, white `Cipher`, and
+  hard shadow. The SVG paths render independently of installed fonts.
 - **`docs/make_favicon.py`** writes two files, because Next.js publishes every
   icon it finds in `app/` and browsers choose between them inconsistently.
   `icon.svg` is vector and follows `prefers-color-scheme`; `favicon.ico` is a
@@ -307,6 +309,8 @@ More to come.
 
 See [AGENTS.md](AGENTS.md) for the architecture rules, testing expectations, and
 deployment details that contributors and AI agents should follow.
+The [product brief](docs/PRODUCT.md), [design notes](docs/DESIGN.md), and
+[engineering ledger](docs/LEDGER.md) are in `docs/`.
 
 ## License
 

@@ -14,7 +14,7 @@ established by the layers below it:
   Layer 7 — Edge cases & stress scenarios  (broadest scope)
 
 Run with:
-    python -m unittest test_cipher_pyramidal.py -v
+    python -m unittest tests.test_cipher_pyramidal -v
 """
 
 import string

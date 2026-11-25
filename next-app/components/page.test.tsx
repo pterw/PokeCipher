@@ -10,7 +10,7 @@ import Page from "@/app/page"
  * can cause itself.
  *
  * These run against a stubbed API rather than a live server so the suite stays
- * hermetic; the Python half is covered by test_app.py. jsdom is enough because
+ * hermetic; the Python half is covered by tests/test_app.py. jsdom is enough because
  * nothing here measures layout — every assertion is about what a user is told,
  * addressed by the text or the role the user would perceive, never by a class.
  */

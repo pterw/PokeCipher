@@ -110,6 +110,6 @@ class TestPokemonCipher(unittest.TestCase):
         self.assertEqual(decoded, expected_final)
 
 
-# Running the tests from the command line: python -m unittest test_cipher.py
+# Running the tests from the command line: python -m unittest tests.test_cipher
 if __name__ == "__main__":
     unittest.main(verbosity=2)
