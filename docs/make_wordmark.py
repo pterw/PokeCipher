@@ -78,6 +78,7 @@ def build_svg() -> str:
 
 def main() -> None:
     """Write a stable SVG file for the README to embed."""
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(build_svg(), encoding="utf-8", newline="\n")
     print(f"wrote {OUTPUT}")
 

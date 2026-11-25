@@ -152,10 +152,11 @@ class TestSpriteInkStaysOffTheField(unittest.TestCase):
         self.assertGreater(darkest - field, 20.0)
 
     def test_the_smallest_entry_still_carries_the_outline(self):
-        """The 16px entry contains the sprite's darkest shade, not just field."""
+        """Given the committed ICO, when reading its 16px entry, then the field and outline survive."""
         inks = {pixel[:3] for pixel in ico_pixels(ICO, 16) if pixel[3]}
+        darkest = min(favicon.SPRITE_RAMP, key=favicon.luminance)
         self.assertIn(favicon.DISC, inks)
-        self.assertIn(favicon.SPRITE_RAMP[0], inks)
+        self.assertIn(darkest, inks)
 
 
 class TestTheRasterAveragesItsFootprint(unittest.TestCase):
