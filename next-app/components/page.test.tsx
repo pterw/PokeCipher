@@ -105,6 +105,11 @@ afterEach(() => {
 })
 
 describe("the tool's failure modes", () => {
+  /**
+   * Given a response that exceeded the search budget,
+   * when the user decodes the input,
+   * then the page shows the result and announces that characters may be wrong.
+   */
   it("warns when the decode was only best-effort", async () => {
     stubApi({
       decode: () => ({ body: { result: "hello wnrld", truncated: true } }),
@@ -112,8 +117,8 @@ describe("the tool's failure modes", () => {
     await useTool("Zubat", /^Decode$/)
 
     await expectText("hello wnrld")
-    expect(screen.getByText(/search budget/).getAttribute("role")).toBe(
-      "status"
+    expect(screen.getByRole("status").textContent).toBe(
+      "This message exceeded the decoder's search budget. Some characters may be wrong."
     )
   })
 

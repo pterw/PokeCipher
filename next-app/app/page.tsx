@@ -371,9 +371,8 @@ export default function Page() {
               className="font-terminal text-base text-marker-ambiguous"
               role="status"
             >
-              This message exceeded the decoder&apos;s search budget, so some
-              characters may be wrong. Decode a shorter message for an exact
-              answer.
+              This message exceeded the decoder&apos;s search budget. Some
+              characters may be wrong.
             </p>
           ) : null}
           {result &&
